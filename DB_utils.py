@@ -1,4 +1,5 @@
 import pandas as pd
+import geopandas as gpd
 import numpy as np
 import os
 import sqlite3
@@ -99,6 +100,25 @@ def extract_and_transform_crime_data(csv_path: str, only_with_crime_ids: bool, e
         df_filtered["Crime ID"] = new_keys
 
         return df_filtered
+
+
+def list_lsoa_data_files(parent_path: str= "data/LB_shp/") -> list[str]:
+    shp_files = []
+    for dirpath, dirnames, filenames in os.walk(parent_path):
+        for file in filenames:
+            if file.endswith(".shp"):
+                shp_files.append(os.path.join(dirpath, file))
+
+    return shp_files
+
+
+def combine_all_lsoa_data_files(list_of_shp_file_paths: list[str]) -> pd.DataFrame:
+    gdfs = []
+
+    for file_path in list_of_shp_file_paths:
+        gdfs.append(gpd.read_file(file_path))
+    
+    return gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
 
 
 class DBhandler:
