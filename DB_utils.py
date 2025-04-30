@@ -7,6 +7,9 @@ import json
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+from tqdm import tqdm
+import secrets
+import time
 
 
 def parse_kml_multipolygon(parent_path: str, kml_file: str) -> pd.DataFrame:
@@ -51,22 +54,59 @@ def parse_kml_multipolygon(parent_path: str, kml_file: str) -> pd.DataFrame:
     return df
 
 
-def list_all_crime_csv_files(parent_path: str= "data/crime_data/") -> list[str]:
+def list_all_street_crime_csv_files(parent_path: str= "data/crime_data/") -> list[str]:
     
     csv_paths = []
     
     for dirpath, dirnames, filenames in os.walk(parent_path):
         for file in filenames:
-            if file.endswith(".csv"):
+            if file.endswith(".csv") and ("street" in file) and (("metropolitan" in file) or ("city-of-london") in file):
                 csv_paths.append(os.path.join(dirpath, file))
 
     return csv_paths
+
+
+def generate_SHA256_key(existing_keys: set[str]) -> str:
+    new_key = None
+
+    while True:
+        new_key = secrets.token_hex(32)
+        if new_key not in existing_keys:
+            existing_keys.add(new_key)
+            return new_key
+
+
+def extract_and_transform_crime_data(csv_path: str, only_with_crime_ids: bool, existing_crime_ids: set) -> pd.DataFrame:
+    
+    df = pd.read_csv(csv_path)
+
+    if only_with_crime_ids:
+        df_filtered = df[pd.notna(df["Crime ID"])]
+
+        temp_existing_crime_ids = df_filtered["Crime ID"].to_list()
+
+        existing_crime_ids.update(temp_existing_crime_ids)
+
+        return df_filtered
+
+    else:
+
+        df_filtered = df[pd.isna(df["Crime ID"])].copy()
+
+        number_of_new_keys_needed = len(df_filtered)
+        new_keys = [generate_SHA256_key(existing_keys=existing_crime_ids) for _ in range(number_of_new_keys_needed)]
+
+        df_filtered["Crime ID"] = new_keys
+
+        return df_filtered
 
 
 class DBhandler:
 
     def __init__(self, db_loc: str= 'data/', db_name: str= 'crime_data_UK.db') -> None:
         
+        self.existing_crime_ids = set()
+
         self.db_loc = db_loc
         self.db_name = db_name
         self.db_path = os.path.join(db_loc, db_name)
@@ -178,7 +218,7 @@ class DBhandler:
         placeholder_str = ", ".join([f":{col}" for col in columns])  # named style for SQLite
 
         # Create the SQL insert statement
-        sql = f"INSERT INTO {table_name} ({column_str}) VALUES ({placeholder_str})"
+        sql = f"INSERT OR IGNORE INTO {table_name} ({column_str}) VALUES ({placeholder_str})"
 
         # Execute insert for all rows
         cursor = self.con.cursor()
@@ -194,52 +234,17 @@ class DBhandler:
 
 
     # Query something
-    def query(self) -> None:
-        pass
+    def query(self, query_txt: str, analyze_query_time: bool= False) -> pd.DataFrame:
+        
+        if self.con is None:
+            raise ValueError("No active database connection. Open the connection first.")
+        
+        if analyze_query_time:
+            t0 = time.time()
 
+        temp_df = pd.read_sql(query_txt, self.con)
 
-if __name__ == "__main__":
-    db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK.db")
+        if analyze_query_time:
+            print(f"\nTime it took to run the query: {(time.time()-t0):2f}")
 
-    # # Create table force_districts
-    # db_handler.create_table(
-    #     table_name='force_districts',
-    #     columns={'force_district_name': 'TEXT PRIMARY KEY',
-    #              'multipolygon':'TEXT'
-    #              }
-    # )
-
-    # # Preprocess data for force_districts
-    # path_to_district_kml_files = "data/force_kmls/"
-    # list_of_district_kmls = os.listdir(path_to_district_kml_files)
-
-    # df_polygons_of_districts = []
-    # for district_kml in list_of_district_kmls:
-    #     df_polygons_of_districts.append(parse_kml_multipolygon(parent_path=path_to_district_kml_files, kml_file=district_kml))
-
-    # df_districts = pd.concat(df_polygons_of_districts, ignore_index=True)
-    # df_districts.multipolygon = df_districts.multipolygon.apply(lambda x: json.dumps(x))
-    
-    # # Insert data into force_districts
-    # db_handler.insert_rows(
-    #     table_name='force_districts',
-    #     data=df_districts.to_dict(orient='records')
-    # )
-
-    # # Create table crime data
-    # db_handler.create_table(
-    #     table_name='crime',
-    #     columns={'crime_id':'TEXT PRIMARY KEY',
-    #              'month':'TEXT',
-    #              'reported_by':'TEXT',
-    #              'falls_within':'TEXT',
-    #              'long':'REAL',
-    #              'lat':'REAL',
-    #              'location':'TEXT',
-    #              'lsoa_code':'TEXT',
-    #              'crime_type':'TEXT',
-    #              'last_outcome_category':'TEXT'
-    #              }
-    # )
-
-    db_handler.close_connection_db()
+        return temp_df
