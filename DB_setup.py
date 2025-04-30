@@ -193,6 +193,11 @@ class DBhandler:
         pass
 
 
+    # Query something
+    def query(self) -> None:
+        pass
+
+
 if __name__ == "__main__":
     db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK.db")
 
