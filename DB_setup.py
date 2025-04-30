@@ -232,7 +232,6 @@ if __name__ == "__main__":
     #              'lat':'REAL',
     #              'location':'TEXT',
     #              'lsoa_code':'TEXT',
-    #              'lsoa_name':'TEXT',
     #              'crime_type':'TEXT',
     #              'last_outcome_category':'TEXT'
     #              }
