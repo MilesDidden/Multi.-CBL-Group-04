@@ -1,11 +1,12 @@
 from DB_utils import *
 from shapely.wkt import dumps as wkt_dumps
+from tqdm import tqdm
 
 
 if __name__ == "__main__":
 
     # Establish connection
-    db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK.db")
+    db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK_v2.db")
 
     # Create table force_districts
     db_handler.create_table(
@@ -48,7 +49,7 @@ if __name__ == "__main__":
                     }
     )
 
-    for file in list_all_street_crime_csv_files():
+    for file in tqdm(list_all_street_crime_csv_files()):
         temp_df = extract_and_transform_crime_data(file, True, db_handler.existing_crime_ids).drop(columns=["LSOA name", "Context"])
 
         temp_df.columns = temp_df.columns.str.strip().str.lower()
@@ -75,7 +76,7 @@ if __name__ == "__main__":
 
     print("\nInserted all crime data with crime ids!\n")
 
-    for file in list_all_street_crime_csv_files():
+    for file in tqdm(list_all_street_crime_csv_files()):
         temp_df = extract_and_transform_crime_data(file, False, db_handler.existing_crime_ids).drop(columns=["LSOA name", "Context"])
 
         temp_df.columns = temp_df.columns.str.strip().str.lower()
@@ -127,6 +128,51 @@ if __name__ == "__main__":
 
     # Insert LSOA data
     db_handler.insert_rows("lsoa_location", data=lsoa_df.to_dict(orient='records'))
+
+
+    # Extract & transform ward data
+    ward_df = gpd.read_file("data/Wards_December_2016_Boundaries_UK_BFE_2022_-5810284385438997272")
+    ward_df = ward_df[["WD16CD", "WD16NM", "geometry"]].rename(columns={
+        "WD16CD":"ward_code",
+        "WD16NM":"ward_name"
+    })
+    ward_df["geometry"] = ward_df["geometry"].apply(wkt_dumps)
+
+
+    # Create ward table
+    db_handler.create_table("ward_location", columns={
+        'ward_code':'TEXT PRIMARY KEY',
+        'ward_name':'TEXT',
+        'geometry':'TEXT'
+    })
+
+    # Insert ward data
+    db_handler.insert_rows("ward_location", data=ward_df.to_dict(orient="records"))
+
+    Extract & transform IMD data
+
+    db_handler.delete_table("imd_data")
+
+    imd_df = pd.read_csv("data/imd2019lsoa.csv").reset_index()
+    imd_df = imd_df[["FeatureCode", "Measurement", "Value", "Indices of Deprivation"]].rename(columns={
+        "index":"uuid_imd",
+        "FeatureCode":"feature_code",
+        "Measurement":"measurement",
+        "Value":"value",
+        "Indices of Deprivation":"indices_of_deprivation"
+    })
+
+    # Create IMD table
+    db_handler.create_table("imd_data", columns={
+        'uuid_imd':'INTEGER PRIMARY KEY',
+        'feature_code':'TEXT',
+        'measurement':'TEXT',
+        'value':'REAL',
+        'indices_of_deprivation':'TEXT'
+    })
+
+    # Insert imd data
+    db_handler.insert_rows("imd_data", data=imd_df.to_dict(orient="records"))
 
 
     # Close Connection

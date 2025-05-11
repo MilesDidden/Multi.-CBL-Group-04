@@ -156,6 +156,8 @@ class DBhandler:
         
         self.con = sqlite3.connect(self.db_path)
 
+        print("\nConnection Opened!\n")
+
 
     # Close connection to db
     def close_connection_db(self) -> None:
