@@ -3,8 +3,7 @@ import pandas as pd
 
 # Functions
 
-
-if __name__ == "__main__":
+if __name__ == "__main.db__":
     db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
 
     crime_data = db_handler.query(
