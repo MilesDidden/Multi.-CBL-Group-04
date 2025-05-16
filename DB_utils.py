@@ -132,9 +132,7 @@ class DBhandler:
         self.db_name = db_name
         self.db_path = os.path.join(self.db_loc, self.db_name)
 
-        if not os.path.exists(self.db_loc):
-            print("db_loc not found!")
-
+        print(f"{os.getcwd()}")
 
         if not os.path.exists(self.db_path):
             print("\nDatabase not found! Creating new database ...\n")
