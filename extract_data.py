@@ -19,4 +19,6 @@ if __name__ == "__main__":
 
     db_handler.close_connection_db()
 
+    result = result.groupby(["lsoa_code", "month"]).agg(crime_count=('crime_id', 'count'), avg_imd_value=('value', 'mean'))
+
     print(result)
