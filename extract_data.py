@@ -19,3 +19,4 @@ if __name__ == "__main__":
     db_handler.close_connection_db()
 
     print(result)
+    
