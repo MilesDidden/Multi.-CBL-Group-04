@@ -5,7 +5,7 @@ import pandas as pd
 
 
 if __name__ == "__main__":
-    db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK_v2.db")
+    db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
 
     crime_data = db_handler.query(
         "SELECT * FROM crime LIMIT 100"
