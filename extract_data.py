@@ -7,11 +7,11 @@ if __name__ == "__main__":
     db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
 
     crime_data = db_handler.query(
-        "SELECT * FROM crime LIMIT 100"
+        "SELECT * FROM crime", True
     ) # Loads crime data in RAM
 
     imd_data = db_handler.query(
-        "SELECT * FROM imd_data WHERE measurement like '%Decile%' and indices_of_deprivation like '%Education%'"
+        "SELECT * FROM imd_data WHERE measurement like '%Decile%' and indices_of_deprivation like '%Education%'", True
     ) # Loads IMD data in RAM
 
     result = pd.merge(crime_data, imd_data, how="left", left_on="lsoa_code", right_on="feature_code") # Left join on lsoa codes
