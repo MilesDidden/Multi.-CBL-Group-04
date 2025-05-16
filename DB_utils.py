@@ -124,11 +124,11 @@ def combine_all_lsoa_data_files(list_of_shp_file_paths: list[str]) -> pd.DataFra
 
 class DBhandler:
 
-    def __init__(self, db_loc: str= 'data/', db_name: str= 'crime_data_UK.db') -> None:
+    def __init__(self, db_loc: str= 'data', db_name: str= 'crime_data_UK_v2.db') -> None:
         
         self.existing_crime_ids = set()
 
-        self.db_loc = db_loc
+        self.db_loc = os.path.abspath(db_loc)
         self.db_name = db_name
         self.db_path = os.path.join(db_loc, db_name)
 
