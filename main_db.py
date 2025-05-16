@@ -149,7 +149,7 @@ if __name__ == "__main__":
     # Insert ward data
     db_handler.insert_rows("ward_location", data=ward_df.to_dict(orient="records"))
 
-    Extract & transform IMD data
+    #Extract & transform IMD data
 
     db_handler.delete_table("imd_data")
 
