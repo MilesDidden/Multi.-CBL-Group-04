@@ -13,9 +13,6 @@ import secrets
 import time
 
 
-#testing 
-#test number 2
-#last test of git
 
 def parse_kml_multipolygon(parent_path: str, kml_file: str) -> pd.DataFrame:
     """
