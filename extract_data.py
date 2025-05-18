@@ -1,7 +1,7 @@
 from DB_utils import DBhandler
 import pandas as pd
 from shapely import wkt
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 import geopandas as gpd
 
 if __name__ == "__main__":
@@ -24,7 +24,6 @@ if __name__ == "__main__":
 
 
 #LSOAS ON IMD
-
 def merge_crime_with_education_imd(db_path: str, db_name: str) -> pd.DataFrame:
     # Initialize DB handler
     db_handler = DBhandler(db_loc=db_path, db_name=db_name)
@@ -88,7 +87,7 @@ crime_df['point'] = crime_df.apply(lambda row: Point(row['long'], row['lat']), a
 # Function to find matching ward
 def find_ward(point, ward_df):
     for _, ward_row in ward_df.iterrows():
-        if ward_row['geometry'].contains(point):
+        if Polygon(ward_row['geometry']).contains(point):
             return pd.Series([ward_row['ward_code'], ward_row['ward_name']])
         else:
             return pd.Series([None, None])  # No match found
