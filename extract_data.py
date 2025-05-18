@@ -28,6 +28,16 @@ if __name__ == "__main__":
     # Close connection
     db_handler.close_connection_db()
 
+    imd_weights = {
+    "income_score": 0.225,
+    "employment_score": 0.225,
+    "education_score": 0.135,
+    "health_score": 0.135,
+    "crime_score": 0.093,
+    "housing_score": 0.093,
+    "environment_score": 0.093
+}
+
     # Merge imd & crime data
     crime_and_imd_data = pd.merge(crime_data, imd_data, how="left", left_on="lsoa_code", right_on="feature_code") # Left join on lsoa codes
     print("\nMerged IMD values with crime data!\n")
