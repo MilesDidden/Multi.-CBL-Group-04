@@ -32,6 +32,7 @@ if __name__ == "__main__":
 
     # Merge imd & crime data
     crime_and_imd_data = pd.merge(crime_data, imd_data, how="left", left_on="lsoa_code", right_on="feature_code") # Left join on lsoa codes
+    print("\nMerged IMD values with crime data!\n")
 
     # Convert crime lat/long to Point geometry
     crime_and_imd_data['geometry'] = crime_and_imd_data.apply(lambda row: Point(row['long'], row['lat']), axis=1)
@@ -41,7 +42,10 @@ if __name__ == "__main__":
     ward_data['geometry'] = ward_data['geometry'].apply(wkt.loads)
     ward_df = gpd.GeoDataFrame(ward_data, geometry='geometry', crs="EPSG:27700").to_crs(epsg=4326)
 
-    # # Spatial join: get the ward each crime is within
+    # Spatial join: get the ward each crime is within
     result = gpd.sjoin(crime_and_imd_gdf, ward_df[['ward_code', 'ward_name', 'geometry']], how="left", predicate="within")
+    print("\nMerged wards with crime data!\n")
 
     print(result.head())
+
+    result.to_csv("temp_results.csv")
