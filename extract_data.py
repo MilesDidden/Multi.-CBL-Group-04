@@ -1,10 +1,8 @@
 from DB_utils import DBhandler
 import pandas as pd
 from shapely import wkt
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
 import geopandas as gpd
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
