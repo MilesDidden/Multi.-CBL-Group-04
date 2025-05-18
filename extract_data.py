@@ -94,13 +94,13 @@ def find_ward(point, ward_df):
 
 crime_sample = crime_df.sample(n=1000, random_state=42).copy()
 
-# Step 2: Match each crime to a ward (only 1000 records now!)
+# Step 2: Match each crime to a ward (trying for 1000 samples for now)
 print("Matching 1000 sampled crimes to wards...")
 crime_sample[['ward_code', 'ward_name']] = crime_sample['point'].apply(lambda pt: find_ward(pt, ward_df))
 
 # Step 3: Preview results
 print(crime_sample[['crime_id', 'lat', 'long', 'ward_code', 'ward_name']])
 
-# Step 4: Export only the sample
+# Step 4: Export
 csv_path = "data/crime_with_wards_sample1000.csv"
 crime_sample.to_csv(csv_path, index=False)
