@@ -1,24 +1,8 @@
 from DB_utils import DBhandler
 import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Point
 from shapely import wkt
-
-# Functions
-
-if __name__ == "__main__":
-    # Connect to the database
-    db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
-    
-    # Run the query
-    ward_sample = db_handler.query("SELECT * FROM ward_location LIMIT 100", True)
-    
-    # Close the connection
-    db_handler.close_connection_db()
-    
-    # Print the result
-    print(ward_sample.head())
-
+from shapely.geometry import Point
+import geopandas as gpd
 
 if __name__ == "__main__":
     db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
@@ -81,40 +65,43 @@ if __name__ == "__main__":
     
     print(result)
 
-def assign_wards_to_crimes(db_path: str, db_name: str) -> gpd.GeoDataFrame:
-    # Connect and load data
-    db_handler = DBhandler(db_loc=db_path, db_name=db_name)
-    
-    crime_df = db_handler.query("SELECT * FROM crime", True)
-    ward_df = db_handler.query("SELECT * FROM ward_location", True)
-    
-    db_handler.close_connection_db()
+#Initialize DB connection
+db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
 
-    # Drop crimes without coordinates
-    crime_df = crime_df.dropna(subset=["lat", "long"])
+#Load ward polygons
+ward_data = db_handler.query("SELECT * FROM ward_location")
+ward_df = pd.DataFrame(ward_data)
 
-    # Convert crimes into GeoDataFrame using lat/lon
-    crime_gdf = gpd.GeoDataFrame(
-        crime_df,
-        geometry=[Point(xy) for xy in zip(crime_df["long"], crime_df["lat"])],
-        crs="EPSG:4326"
-    )
+#Convert WKT strings to Shapely geometry objects
+ward_df['geometry'] = ward_df['geometry'].apply(wkt.loads)
 
-    # Convert ward WKT geometries to shapely polygons
-    ward_df["geometry"] = ward_df["geometry"].apply(wkt.loads)
-    ward_gdf = gpd.GeoDataFrame(ward_df, geometry="geometry", crs="EPSG:4326")
+#Check the first few geometries
+print(ward_df[['ward_code', 'ward_name', 'geometry']].head())
 
-    # Spatial join: assigns each crime to the ward it falls within
-    joined = gpd.sjoin(crime_gdf, ward_gdf[["ward_code", "ward_name", "geometry"]], how="left", predicate="within")
+#Load crimes with valid coordinates
+crime_data = db_handler.query("SELECT * FROM crime WHERE lat IS NOT NULL AND long IS NOT NULL")
+crime_df = pd.DataFrame(crime_data)
 
-    return joined
+#Convert each lat/long to a Shapely Point
+crime_df['point'] = crime_df.apply(lambda row: Point(row['long'], row['lat']), axis=1)
 
-# Example usage
-if __name__ == "__main__":
-    result = assign_wards_to_crimes("data", "crime_data_UK_v2.db")
-    
-    # Show sample with assigned wards
-    print(result[["crime_id", "lat", "long", "ward_code", "ward_name"]].head())
+# Function to find matching ward
+def find_ward(point, ward_df):
+    for _, ward_row in ward_df.iterrows():
+        if ward_row['geometry'].contains(point):
+            return pd.Series([ward_row['ward_code'], ward_row['ward_name']])
+        else:
+            return pd.Series([None, None])  # No match found
 
-    # Optional: save to CSV
-    result.to_csv("data/crime_with_wards.csv", index=False)
+crime_sample = crime_df.sample(n=1000, random_state=42).copy()
+
+# Step 2: Match each crime to a ward (only 1000 records now!)
+print("Matching 1000 sampled crimes to wards...")
+crime_sample[['ward_code', 'ward_name']] = crime_sample['point'].apply(lambda pt: find_ward(pt, ward_df))
+
+# Step 3: Preview results
+print(crime_sample[['crime_id', 'lat', 'long', 'ward_code', 'ward_name']])
+
+# Step 4: Export only the sample
+csv_path = "data/crime_with_wards_sample1000.csv"
+crime_sample.to_csv(csv_path, index=False)
