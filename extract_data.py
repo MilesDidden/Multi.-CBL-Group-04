@@ -18,9 +18,22 @@ if __name__ == "__main__":
 
     # Load all IMD Decile values for all domains
     imd_data = db_handler.query(
-        "SELECT * FROM imd_data WHERE measurement LIKE '%Decile%'", True
+    """
+    SELECT * FROM imd_data
+    WHERE measurement LIKE '%Decile%'
+    AND (
+        indices_of_deprivation LIKE '%Income%' OR
+        indices_of_deprivation LIKE '%Employment%' OR
+        indices_of_deprivation LIKE '%Education%' OR
+        indices_of_deprivation LIKE '%Health%' OR
+        indices_of_deprivation LIKE '%Crime%' OR
+        indices_of_deprivation LIKE '%Barriers%' OR
+        indices_of_deprivation LIKE '%Environment%'
     )
-
+    """,
+    True
+    )
+    
     # Load ward polygons
     ward_data = db_handler.query(
         "SELECT * FROM ward_location", True
