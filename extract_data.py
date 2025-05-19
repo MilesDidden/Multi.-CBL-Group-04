@@ -14,46 +14,47 @@ if __name__ == "__main__":
     # Query data
     crime_data = db_handler.query(
         "SELECT * FROM crime", True
-    ) # Loads crime data in RAM
+    )  # Loads crime data in RAM
 
+    # Load all IMD Decile values for all domains
     imd_data = db_handler.query(
-        "SELECT * FROM imd_data WHERE measurement like '%Decile%' and indices_of_deprivation like '%Education%'", True
-    ) # Loads IMD data in RAM
+        "SELECT * FROM imd_data WHERE measurement LIKE '%Decile%'", True
+    )
 
-    #Load ward polygons
+    # Load ward polygons
     ward_data = db_handler.query(
         "SELECT * FROM ward_location", True
-    ) # Loads ward data in RAM
+    )  # Loads ward data in RAM
 
     # Close connection
     db_handler.close_connection_db()
 
-    imd_weights = {
-    "income_score": 0.225,
-    "employment_score": 0.225,
-    "education_score": 0.135,
-    "health_score": 0.135,
-    "crime_score": 0.093,
-    "housing_score": 0.093,
-    "environment_score": 0.093
-}
+    # Compute average IMD decile per LSOA (feature_code)
+    avg_imd_per_lsoa = (
+        imd_data
+        .groupby('feature_code')['value']
+        .mean()
+        .reset_index()
+        .rename(columns={'value': 'average_imd_decile'})
+    )
 
-    # Merge imd & crime data
-    crime_and_imd_data = pd.merge(crime_data, imd_data, how="left", left_on="lsoa_code", right_on="feature_code") # Left join on lsoa codes
-    print("\nMerged IMD values with crime data!\n")
+    # Merge average IMD with crime data
+    crime_and_imd_data = pd.merge(
+        crime_data, avg_imd_per_lsoa, how="left", left_on="lsoa_code", right_on="feature_code"
+    )
+    print("\nMerged average IMD deciles with crime data!\n")
 
-    # Convert crime lat/long to Point geometry
+    # Convert lat/long to Point geometry
     crime_and_imd_data['geometry'] = crime_and_imd_data.apply(lambda row: Point(row['long'], row['lat']), axis=1)
     crime_and_imd_gdf = gpd.GeoDataFrame(crime_and_imd_data, geometry='geometry', crs="EPSG:4326")
 
-    # Ensure ward geometry is also parsed from WKT and set to EPSG:4326
+    # Convert ward geometry from WKT and reproject to match crime data CRS
     ward_data['geometry'] = ward_data['geometry'].apply(wkt.loads)
     ward_df = gpd.GeoDataFrame(ward_data, geometry='geometry', crs="EPSG:27700").to_crs(epsg=4326)
 
-    # Spatial join: get the ward each crime is within
+    # Spatial join: get the ward each crime falls within
     result = gpd.sjoin(crime_and_imd_gdf, ward_df[['ward_code', 'ward_name', 'geometry']], how="left", predicate="within")
     print("\nMerged wards with crime data!\n")
 
     print(result.head())
-
-    result.to_csv("temp_results.csv")
+    result.to_csv("temp_results.csv", index=False)
