@@ -19,17 +19,13 @@ if __name__ == "__main__":
     # Load all IMD Decile values for all domains
     imd_data = db_handler.query(
     """
-    SELECT * FROM imd_data
-    WHERE measurement LIKE '%Decile%'
-    AND (
-        indices_of_deprivation LIKE '%Income%' OR
-        indices_of_deprivation LIKE '%Employment%' OR
-        indices_of_deprivation LIKE '%Education%' OR
-        indices_of_deprivation LIKE '%Health%' OR
-        indices_of_deprivation LIKE '%Crime%' OR
-        indices_of_deprivation LIKE '%Barriers%' OR
-        indices_of_deprivation LIKE '%Environment%'
-    )
+    SELECT 
+        * 
+    FROM 
+        imd_data
+    WHERE 
+        measurement LIKE '%Decile%'
+        AND indices_of_deprivation LIKE '%Index of Multiple Deprivation (IMD)%'
     """,
     True
     )
@@ -43,13 +39,7 @@ if __name__ == "__main__":
     db_handler.close_connection_db()
 
     # Compute average IMD decile per LSOA (feature_code)
-    avg_imd_per_lsoa = (
-        imd_data
-        .groupby('feature_code')['value']
-        .mean()
-        .reset_index()
-        .rename(columns={'value': 'average_imd_decile'})
-    )
+    avg_imd_per_lsoa = imd_data.rename(columns={'value': 'average_imd_decile'})
 
     # Merge average IMD with crime data
     crime_and_imd_data = pd.merge(
