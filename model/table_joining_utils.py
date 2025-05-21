@@ -1,42 +1,9 @@
-from DB_utils import DBhandler
 import pandas as pd
 from shapely import wkt
 from shapely.geometry import Point
 import geopandas as gpd
 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
-
-if __name__ == "__main__":
-    # Init db
-    db_handler = DBhandler(db_loc="data", db_name="crime_data_UK_v2.db")
-    
-    # Query data
-    crime_data = db_handler.query(
-        "SELECT * FROM crime", True
-    )  # Loads crime data in RAM
-
-    # Load all IMD Decile values for all domains
-    imd_data = db_handler.query(
-    """
-    SELECT 
-        * 
-    FROM 
-        imd_data
-    WHERE 
-        measurement LIKE '%Decile%'
-        AND indices_of_deprivation LIKE '%Index of Multiple Deprivation (IMD)%'
-    """,
-    True
-    )
-    
-    # Load ward polygons
-    ward_data = db_handler.query(
-        "SELECT * FROM ward_location", True
-    )  # Loads ward data in RAM
-
-    # Close connection
-    db_handler.close_connection_db()
+def join_tables(crime_data: pd.DataFrame, ward_data: pd.DataFrame, imd_data: pd.DataFrame) -> pd.DataFrame:
 
     # Compute average IMD decile per LSOA (feature_code)
     avg_imd_per_lsoa = imd_data.rename(columns={'value': 'average_imd_decile'})
@@ -59,5 +26,4 @@ if __name__ == "__main__":
     result = gpd.sjoin(crime_and_imd_gdf, ward_df[['ward_code', 'ward_name', 'geometry']], how="left", predicate="within")
     print("\nMerged wards with crime data!\n")
 
-    print(result.head())
-    result.to_csv("temp_results.csv", index=False)
+    return result
