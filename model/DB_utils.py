@@ -128,7 +128,8 @@ class DBhandler:
         
         self.existing_crime_ids = set()
 
-        self.db_loc = os.path.abspath(db_loc)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.db_loc = os.path.abspath(os.path.join(base_dir, db_loc))
         self.db_name = db_name
         self.db_path = os.path.join(self.db_loc, self.db_name)
 

@@ -1,4 +1,4 @@
-from DB_utils import *
+from model.DB_utils import *
 from shapely.wkt import dumps as wkt_dumps
 from tqdm import tqdm
 
