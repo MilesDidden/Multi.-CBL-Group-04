@@ -18,7 +18,7 @@ if __name__ == "__main__":
         True
     )
 
-    # Load all IMD Decile values for all domains
+    # Load all IMD Decile values
     imd_data = db_handler.query(
         """
         SELECT 
