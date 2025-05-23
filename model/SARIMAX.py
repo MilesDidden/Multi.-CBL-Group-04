@@ -1,5 +1,4 @@
 from DB_utils import DBhandler
-
 import pandas as pd
 import statsmodels.api as sm
 import os
