@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     # Set datetime index and frequency
     df = df.asfreq("MS")  # MS = Month Start
-
+     
     # Handle missing values
     df["num_of_crimes"] = df["num_of_crimes"].fillna(0)
     df["avg_imd"] = df["avg_imd"].interpolate()  # Interpolate exogenous variable
