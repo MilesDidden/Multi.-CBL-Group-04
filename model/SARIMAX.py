@@ -37,8 +37,8 @@ if __name__ == "__main__":
     sarimax = sm.tsa.statespace.SARIMAX(
         df["num_of_crimes"],
         exog=df["avg_imd"],
-        order=(2, 1, 2),
-        # seasonal_order=(1, 1, 0, 12),
+        order=(1, 0, 0),
+        seasonal_order=(1, 0, 0, 12),
         enforce_stationarity=False,
         enforce_invertibility=False
     )
@@ -50,6 +50,5 @@ if __name__ == "__main__":
     # Plot
     df[["num_of_crimes", "forecast"]].plot(title="Observed vs Forecasted Crime Counts", figsize=(10, 4))
     plt.show()
-    plt.savefig("temp")
 
     print(results.summary())
