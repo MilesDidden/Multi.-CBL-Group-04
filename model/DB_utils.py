@@ -130,7 +130,7 @@ def combine_all_lsoa_data_files(list_of_shp_file_paths: list[str]) -> pd.DataFra
 
 class DBhandler:
 
-    def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v3.db') -> None:
+    def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v3.db', verbose: int=1) -> None:
         
         self.existing_crime_ids = set()
 
@@ -139,21 +139,23 @@ class DBhandler:
         self.db_name = db_name
         self.db_path = os.path.join(self.db_loc, self.db_name)
 
-        print(f"{os.getcwd()}")
+        self.verbose = verbose
 
         if not os.path.exists(self.db_path):
-            print("\nDatabase not found! Creating new database ...\n")
+            if self.verbose==1:
+                print("\nDatabase not found! Creating new database ...\n")
 
             try:
                 self.con = sqlite3.connect(self.db_path)
-                print(f"\nDatabase created at {self.db_path}\n")
+                if self.verbose==1:
+                    print(f"\nDatabase created at {self.db_path}\n")
             except:
                 raise ValueError("\nInvalid database location!\n")
             
         else:
             self.con = sqlite3.connect(self.db_path)
-            
-            print("\nEstablished connection with database!\n")
+            if self.verbose==1:
+                print("\nEstablished connection with database!\n")
 
 
     # Connect to db to update tables
@@ -177,7 +179,8 @@ class DBhandler:
         self.con.close()
         self.con = None
 
-        print('\nConnection successfully closed!\n')
+        if self.verbose==1:
+            print('\nConnection successfully closed!\n')
 
 
     # Create table
@@ -198,7 +201,8 @@ class DBhandler:
         self.con.commit()
 
         # Confirmation
-        print(f"\nTable '{table_name}' created successfully (if non-existing).\n")
+        if self.verbose==1:
+            print(f"\nTable '{table_name}' created successfully (if non-existing).\n")
 
 
     # Delete table
@@ -213,7 +217,8 @@ class DBhandler:
         cursor.execute(f"DROP TABLE IF EXISTS {table_name};")
         self.con.commit()
 
-        print(f"\nTable '{table_name}' deleted successfully (if it existed).\n")
+        if self.verbose==1:
+            print(f"\nTable '{table_name}' deleted successfully (if it existed).\n")
 
 
     # List existing tables
@@ -257,7 +262,8 @@ class DBhandler:
         cursor.executemany(sql, data)
         self.con.commit()
 
-        print(f"\nInserted {len(data)} rows into '{table_name}' successfully.\n")
+        if self.verbose==1:
+            print(f"\nInserted {len(data)} rows into '{table_name}' successfully.\n")
 
 
     # Remove duplicate rows
