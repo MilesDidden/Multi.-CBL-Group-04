@@ -5,7 +5,7 @@ import os
 
 if __name__ == "__main__":
     # Init db
-    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v2.db")
+    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v3.db")
     
     # Load crime data
     crime_data = db_handler.query(

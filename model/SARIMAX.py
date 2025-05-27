@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 if __name__ == "__main__":
 
     # Load DBhandler to get data path
-    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v2.db")
+    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v3.db")
     db_handler.close_connection_db()
 
     # Load CSV
