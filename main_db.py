@@ -6,7 +6,7 @@ from tqdm import tqdm
 if __name__ == "__main__":
 
     # Establish connection
-    db_handler = DBhandler(db_loc="data/", db_name="crime_data_UK_v2.db")
+    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v3.db")
 
     # Create table force_districts
     db_handler.create_table(
@@ -50,56 +50,71 @@ if __name__ == "__main__":
     )
 
     for file in tqdm(list_all_street_crime_csv_files()):
-        temp_df = extract_and_transform_crime_data(file, True, db_handler.existing_crime_ids).drop(columns=["LSOA name", "Context"])
+        temp_df = extract_and_transform_crime_data(file, True, db_handler.existing_crime_ids)
 
-        temp_df.columns = temp_df.columns.str.strip().str.lower()
+        if not temp_df.empty:
 
-        temp_df = temp_df.rename(
-            columns={
-                "crime id": "crime_id",
-                "month": "month",
-                "reported by": "reported_by",
-                "falls within": "falls_within",
-                "longitude": "long",
-                "latitude": "lat",
-                "location":"location",
-                "lsoa code": "lsoa_code",
-                "crime type":"crime_type",
-                "last outcome category":"last_outcome_category"
-            }
-        )
+            temp_df = temp_df.drop(columns=["LSOA name", "Context"])
+
+            temp_df.columns = temp_df.columns.str.strip().str.lower()
+
+            temp_df = temp_df.rename(
+                columns={
+                    "crime id": "crime_id",
+                    "month": "month",
+                    "reported by": "reported_by",
+                    "falls within": "falls_within",
+                    "longitude": "long",
+                    "latitude": "lat",
+                    "location":"location",
+                    "lsoa code": "lsoa_code",
+                    "crime type":"crime_type",
+                    "last outcome category":"last_outcome_category"
+                }
+            )
+            # print(temp_df.head())
+            
+            db_handler.insert_rows(
+                table_name='crime',
+                data=temp_df.to_dict(orient='records')
+            )
         
-        db_handler.insert_rows(
-            table_name='crime',
-            data=temp_df.to_dict(orient='records')
-        )
+        else:
+            print("Empty dataframe, skipping file ...")
 
     print("\nInserted all crime data with crime ids!\n")
 
     for file in tqdm(list_all_street_crime_csv_files()):
-        temp_df = extract_and_transform_crime_data(file, False, db_handler.existing_crime_ids).drop(columns=["LSOA name", "Context"])
+        temp_df = extract_and_transform_crime_data(file, False, db_handler.existing_crime_ids)
 
-        temp_df.columns = temp_df.columns.str.strip().str.lower()
+        if not temp_df.empty:
 
-        temp_df = temp_df.rename(
-            columns={
-                "crime id": "crime_id",
-                "month": "month",
-                "reported by": "reported_by",
-                "falls within": "falls_within",
-                "longitude": "long",
-                "latitude": "lat",
-                "location":"location",
-                "lsoa code": "lsoa_code",
-                "crime type":"crime_type",
-                "last outcome category":"last_outcome_category"
-            }
-        )
-        
-        db_handler.insert_rows(
-            table_name='crime',
-            data=temp_df.to_dict(orient='records')
-        )
+            temp_df = temp_df.drop(columns=["LSOA name", "Context"])
+
+            temp_df.columns = temp_df.columns.str.strip().str.lower()
+
+            temp_df = temp_df.rename(
+                columns={
+                    "crime id": "crime_id",
+                    "month": "month",
+                    "reported by": "reported_by",
+                    "falls within": "falls_within",
+                    "longitude": "long",
+                    "latitude": "lat",
+                    "location":"location",
+                    "lsoa code": "lsoa_code",
+                    "crime type":"crime_type",
+                    "last outcome category":"last_outcome_category"
+                }
+            )
+            
+            db_handler.insert_rows(
+                table_name='crime',
+                data=temp_df.to_dict(orient='records')
+            )
+
+        else:
+            print("Empty dataframe, skipping this file ...")
 
     print("\nInserted all data with generated crime ids!\n")
 

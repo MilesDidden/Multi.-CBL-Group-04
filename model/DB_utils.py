@@ -89,6 +89,9 @@ def extract_and_transform_crime_data(csv_path: str, only_with_crime_ids: bool, e
 
         existing_crime_ids.update(temp_existing_crime_ids)
 
+        if len(df_filtered) <= 0:
+            print("All crime data misses crime_id values!")
+
         return df_filtered
 
     else:
@@ -99,6 +102,9 @@ def extract_and_transform_crime_data(csv_path: str, only_with_crime_ids: bool, e
         new_keys = [generate_SHA256_key(existing_keys=existing_crime_ids) for _ in range(number_of_new_keys_needed)]
 
         df_filtered["Crime ID"] = new_keys
+
+        if len(df_filtered) <= 0:
+            print("All crime data had crime id values!")
 
         return df_filtered
 
@@ -124,7 +130,7 @@ def combine_all_lsoa_data_files(list_of_shp_file_paths: list[str]) -> pd.DataFra
 
 class DBhandler:
 
-    def __init__(self, db_loc: str= 'data', db_name: str= 'crime_data_UK_v2.db') -> None:
+    def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v3.db') -> None:
         
         self.existing_crime_ids = set()
 
