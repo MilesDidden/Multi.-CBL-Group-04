@@ -28,6 +28,8 @@ import geopandas as gpd
 
 #     return result
 
+
+
 def join_tables(crime_data: pd.DataFrame, ward_data: pd.DataFrame, imd_data: pd.DataFrame) -> gpd.GeoDataFrame:
     # Step 1: Rename IMD column and merge (already fast)
     avg_imd_per_lsoa = imd_data.rename(columns={'value': 'average_imd_decile'})
@@ -37,8 +39,6 @@ def join_tables(crime_data: pd.DataFrame, ward_data: pd.DataFrame, imd_data: pd.
         left_on="lsoa_code",
         right_on="feature_code"
     )
-    print("\nMerged average IMD deciles with crime data!\n")
-
 
     # Step 2: Vectorized Point creation
     crime_and_imd_data['geometry'] = gpd.points_from_xy(crime_and_imd_data['long'], crime_and_imd_data['lat'])
@@ -56,6 +56,5 @@ def join_tables(crime_data: pd.DataFrame, ward_data: pd.DataFrame, imd_data: pd.
         how="left",
         predicate="within"
     )
-    print("\nMerged wards with crime data!\n")
-
+    
     return result
