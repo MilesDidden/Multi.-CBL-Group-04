@@ -21,8 +21,6 @@ def process_chunk(offset: int, chunk_size: int, imd_data: pd.DataFrame, ward_dat
             * 
         FROM 
             crime
-        ORDER BY
-            crime_id
         LIMIT
             {chunk_size}
         OFFSET
