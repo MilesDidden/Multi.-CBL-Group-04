@@ -1,5 +1,6 @@
 from DB_utils import DBhandler
 from table_joining_utils import join_tables
+from time import time
 
 import os
 
@@ -46,8 +47,10 @@ if __name__ == "__main__":
     # Close connection
     db_handler.close_connection_db()
 
+    t0 = time()
     # Join tables
     df_final = join_tables(crime_data=crime_data, ward_data=ward_data, imd_data=imd_data)
+    print(f"took {time() - t0} seconds to join data!")
 
     # Show a sample of joined dataframes
     print(df_final.head())
