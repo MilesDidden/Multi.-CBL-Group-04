@@ -43,8 +43,8 @@ def timeseries(ward_code: str):
     sarimax = sm.tsa.statespace.SARIMAX(
         df["num_of_crimes"],
         exog=df["avg_imd"],
-        order=(3, 0, 0),
-        seasonal_order=(3, 0, 0, 12),
+        order=(1, 1, 0),
+        seasonal_order=(1, 0, 0, 12),
         enforce_stationarity=False,
         enforce_invertibility=False
     )
@@ -63,7 +63,7 @@ def timeseries(ward_code: str):
             endog_train,
             exog=exog_train,
             order=(1, 1, 0),
-            seasonal_order=(1, 1, 0, 12),
+            seasonal_order=(1, 0, 0, 12),
             enforce_stationarity=False,
             enforce_invertibility=False
         )
@@ -84,7 +84,7 @@ def timeseries(ward_code: str):
         endog_train,
         exog=exog_train,
         order=(1, 1, 0),
-        seasonal_order=(1, 1, 0, 12),
+        seasonal_order=(1, 0, 0, 12),
         enforce_stationarity=False,
         enforce_invertibility=False
     )
