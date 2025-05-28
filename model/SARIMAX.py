@@ -158,5 +158,5 @@ def timeseries(ward_code: str):
 
 if __name__ == "__main__":
     fig, forecasted_num_of_crimes = timeseries(ward_code=ward_code)
-    pio.write_html(fig, file="forecast_plot.html", auto_open=False)
-    print(forecasted_num_of_crimes)
+    pio.write_html(fig, file="forecast_plot.html", auto_open=True)
+    # print(forecasted_num_of_crimes)

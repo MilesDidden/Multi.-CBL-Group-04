@@ -1,6 +1,49 @@
 from model.DB_utils import *
+from model.table_joining_utils import join_tables
+
 from shapely.wkt import dumps as wkt_dumps
 from tqdm import tqdm
+import psutil
+from multiprocessing import Pool
+import pandas as pd
+
+
+CPU_COUNT = psutil.cpu_count(logical=False)
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = "../data/"
+DB_NAME = "crime_data_UK_v3.db"
+
+# Temp paths for parquet files
+IMD_PARQUET = os.path.join(os.path.abspath(os.path.join(SCRIPT_DIR, DB_PATH)), "imd_data_temp.parquet")
+WARD_PARQUET = os.path.join(os.path.abspath(os.path.join(SCRIPT_DIR, DB_PATH)), "ward_data_temp.parquet")
+
+
+def process_chunk(offset: int, chunk_size: int):
+    # Load IMD and ward data inside each process from Parquet
+    imd_data = pd.read_parquet(IMD_PARQUET)
+    ward_data = pd.read_parquet(WARD_PARQUET)
+
+    db_handler = DBhandler(DB_PATH, DB_NAME, verbose=0)
+    crime_data = db_handler.query(
+        f"""
+        SELECT
+            *
+        FROM 
+            crime
+        ORDER BY 
+            crime_id
+        LIMIT 
+            {chunk_size}
+        OFFSET 
+            {offset}
+        """,
+        False
+    )
+    db_handler.close_connection_db()
+
+    df_final_temp = join_tables(crime_data=crime_data, ward_data=ward_data, imd_data=imd_data)
+    return df_final_temp
 
 
 if __name__ == "__main__":
@@ -188,6 +231,127 @@ if __name__ == "__main__":
 
     # Insert imd data
     db_handler.insert_rows("imd_data", data=imd_df.to_dict(orient="records"))
+
+
+    #### Add covid variables ####
+
+    db_handler.query(
+        '''
+        ALTER TABLE crime
+        ADD COLUMN stringency_index REAL
+        ''')
+    db_handler.query(
+        '''
+        ALTER TABLE crime
+        ADD COLUMN covid_indicator REAL
+        '''
+    )
+    
+    min_max_month_crimes = db_handler.query(
+        '''
+        SELECT 
+            MIN(month) as min_month, 
+            MAX(month) as max_month
+        FROM 
+            crime
+        '''
+    )
+    min_month_crime = min_max_month_crimes.loc[0, "min_month"]
+    max_month_crime = min_max_month_crimes.loc[0, "max_month"]
+
+    month_range = pd.date_range(start=min_month_crime, end=max_month_crime, freq="MS")
+
+    month_df = pd.DataFrame({
+        "month", month_range.strftime("%Y-%m"),
+    })
+
+    covid_df = read_and_transform_stringency_data(os.path.join(db_handler.db_loc, "OxCGRT_timeseries_StringencyIndex_v1.csv"))
+
+    final_covid_data = month_df.merge(covid_df, on="month", how="left")
+
+    final_covid_data[["stringency_index", "covid_indicator"]] = final_covid_data[["stringency_index", "covid_indicator"]].fillna(0)
+
+    # Create temp covid table
+    db_handler.create_table("temp_covid_table", columns={
+        "month":"TEXT PRIMARY KEY",
+        "stringency_index":"REAL",
+        "covid_indicator":"REAL"
+    })
+
+    db_handler.insert_rows("temp_covid_table", data=final_covid_data.to_dict(orient="records"))
+
+    db_handler.query(
+        '''
+        UPDATE crime
+        SET stringency_index = (
+            SELECT temp.stringency_index
+            FROM temp_covid_table temp
+            WHERE temp.month = crime.month
+        ),
+        covid_indicator = (
+            SELECT temp.covid_indicator
+            FROM temp_covid_table temp
+            WHERE temp.month = crime.month
+        )
+        ''') # Does this work ???
+    
+    db_handler.delete_table('temp_covid_table')
+
+    #### Update crime table, such that it contains imd data & ward code ####
+
+    # Load data once and save to Parquet for multiprocessing
+    crime_count = db_handler.query("SELECT COUNT(crime_id) as crimes FROM crime", True).loc[0, "crimes"]
+    chunk_size = int(crime_count / CPU_COUNT)
+
+    # print(f"\nDividing computational work over {CPU_COUNT} workers.\n")
+    offset_per_agent = [i for i in range(0, crime_count, chunk_size)]
+
+    imd_data = db_handler.query("""
+        SELECT * FROM imd_data
+        WHERE measurement LIKE '%Decile%'
+        AND indices_of_deprivation LIKE '%Index of Multiple Deprivation (IMD)%'
+    """, True)
+    imd_data.to_parquet(IMD_PARQUET, index=False)
+
+    ward_data = db_handler.query("SELECT * FROM ward_location", True)
+    ward_data.to_parquet(WARD_PARQUET, index=False)
+
+    # Use Pool with starmap and arguments (offset, chunk_size)
+    with Pool(CPU_COUNT) as pool:
+        results = pool.starmap(process_chunk, [(offset, chunk_size) for offset in offset_per_agent])
+
+    df_final = pd.concat(results, ignore_index=True)[["crime_id" ,"month", "reported_by", "falls_within", 
+                                                      "long", "lat", "location", "lsoa_code", "crime_type", 
+                                                      "last_outcome_category", "average_imd_decile", "ward_code",
+                                                      "covid_indicator", "stringency_index"]]
+
+    # delete current crime table
+    db_handler.delete_table("crime")
+    # create new crime table
+    db_handler.create_table("crime", columns={
+        'crime_id':'TEXT PRIMARY KEY',
+        'month':'TEXT',
+        'reported_by':'TEXT',
+        'falls_within':'TEXT',
+        'long':'REAL',
+        'lat':'REAL',
+        'location':'TEXT',
+        'lsoa_code':'TEXT',
+        'crime_type':'TEXT',
+        'last_outcome_category':'TEXT',
+        'average_imd_decile': 'REAL',
+        'ward_code': 'TEXT',
+        'covid_indicator': 'REAL',
+        'stringency_index': 'REAL'
+    })
+    # insert rows of df_final
+    db_handler.insert_rows("crime", data=df_final.to_dict(orient='records'))
+
+    # Clean up temporary Parquet files
+    if os.path.exists(IMD_PARQUET):
+        os.remove(IMD_PARQUET)
+    if os.path.exists(WARD_PARQUET):
+        os.remove(WARD_PARQUET)
 
 
     # Close Connection

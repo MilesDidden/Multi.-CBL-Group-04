@@ -128,6 +128,33 @@ def combine_all_lsoa_data_files(list_of_shp_file_paths: list[str]) -> pd.DataFra
     return gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
 
 
+def read_and_transform_stringency_data(path: str)-> pd.DataFrame:
+    df = pd.read_csv(path)
+
+    df = df[df["RegionCode"] == "UK_ENG"].iloc[:, 7:]
+
+    df = df.T.reset_index()
+
+    df.columns = ["date", "stringency_index"]
+
+    df['date'] = pd.to_datetime(df['date'], format='%d%b%Y')
+
+    df["year"], df["month"], df["day"] = df["date"].dt.year, df["date"].dt.month, df["date"].dt.day
+
+    df = df[["year", "month", "day", "stringency_index"]].copy()
+
+    df = df[pd.notna(df["stringency_index"])]
+
+    df = df.groupby(by=["year", "month"]).agg(stringency_index=("stringency_index", "mean")).reset_index()
+    df['month'] = pd.to_datetime(df[['year', 'month']].assign(day=1))
+    df['month'] = df['month'].dt.strftime('%Y-%m')
+    df = df[['month', 'stringency_index']].copy()
+    df["covid_indicator"] = 1
+
+
+    return df
+
+
 class DBhandler:
 
     def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v3.db', verbose: int=1) -> None:
