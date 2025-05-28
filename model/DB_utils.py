@@ -313,3 +313,18 @@ class DBhandler:
             print(f"\nTime it took to run the query: {(time.time()-t0):2f}")
 
         return temp_df
+    
+
+    # Make updates
+    def update(self, query_txt: str) -> None:
+        if self.con is None:
+            raise ValueError("No active database connection. Open the connection first.")
+        
+        cursor = self.con.cursor()
+
+        cursor.execute(query_txt)
+        self.con.commit()
+
+        print('\nDatabase updated!\n')
+
+        return None
