@@ -8,7 +8,7 @@ from multiprocessing import Pool
 import pandas as pd
 
 
-def process_chunk(offset: int, chunk_size: int, imd_parquet_loc: str, ward_parquet_loc: str) -> pd.DataFrame:
+def process_chunk(offset: int, chunk_size: int, imd_parquet_loc: str, ward_parquet_loc: str) -> None:
     # Load IMD and ward data inside each process from Parquet
     imd_data = pd.read_parquet(imd_parquet_loc)
     ward_data = pd.read_parquet(ward_parquet_loc)
@@ -29,10 +29,12 @@ def process_chunk(offset: int, chunk_size: int, imd_parquet_loc: str, ward_parqu
         """,
         False
     )
-    db_handler.close_connection_db()
 
     df_final_temp = join_tables(crime_data=crime_data, ward_data=ward_data, imd_data=imd_data)
-    return df_final_temp
+
+    db_handler.insert_rows("crime_temp", data=df_final_temp.to_dict(orient='records'))
+
+    db_handler.close_connection_db()
 
 
 if __name__ == "__main__":
@@ -311,19 +313,7 @@ if __name__ == "__main__":
     ward_data = db_handler.query("SELECT * FROM ward_location", True)
     ward_data.to_parquet(ward_parquet, index=False)
 
-    # Use Pool with starmap and arguments (offset, chunk_size)
-    with Pool(cpu_count) as pool:
-        results = pool.starmap(process_chunk, [(offset, chunk_size, imd_parquet, ward_parquet) for offset in offset_per_agent])
-
-    df_final = pd.concat(results, ignore_index=True)[["crime_id" ,"month", "reported_by", "falls_within", 
-                                                      "long", "lat", "location", "lsoa_code", "crime_type", 
-                                                      "last_outcome_category", "average_imd_decile", "ward_code",
-                                                      "covid_indicator", "stringency_index"]]
-
-    # delete current crime table
-    db_handler.delete_table("crime")
-    # create new crime table
-    db_handler.create_table("crime", columns={
+    db_handler.create_table("crime_temp", columns={
         'crime_id':'TEXT PRIMARY KEY',
         'month':'TEXT',
         'reported_by':'TEXT',
@@ -339,8 +329,10 @@ if __name__ == "__main__":
         'covid_indicator': 'REAL',
         'stringency_index': 'REAL'
     })
-    # insert rows of df_final
-    db_handler.insert_rows("crime", data=df_final.to_dict(orient='records'))
+
+    # Use Pool with starmap and arguments (offset, chunk_size)
+    with Pool(cpu_count) as pool:
+        pool.starmap(process_chunk, [(offset, chunk_size, imd_parquet, ward_parquet) for offset in offset_per_agent])
 
     # Clean up temporary Parquet files
     if os.path.exists(imd_parquet):
