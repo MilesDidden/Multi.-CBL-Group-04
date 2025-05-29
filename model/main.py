@@ -7,7 +7,7 @@ if __name__ == "__main__":
 
     example_ward_code = 'E05000138'
 
-    crime_data = db_handler.query(f"SELECT * FROM crime WHERE ward_code = '{example_ward_code}'")
+    crime_data = db_handler.query(f"SELECT * FROM crime WHERE ward_code = '{example_ward_code}'", True)
 
     db_handler.close_connection_db()
 
