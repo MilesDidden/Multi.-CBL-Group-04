@@ -52,4 +52,4 @@ def run_kmeans(ward_code: str, n_clusters: int = 100):
 
 if __name__ == "__main__":
     centroids, clustered_data = run_kmeans(ward_code)
-    print(f"Centroids for {ward_code}:\n", centroids)
+    print(f"Police officers allocation for {ward_code}:\n", centroids)
