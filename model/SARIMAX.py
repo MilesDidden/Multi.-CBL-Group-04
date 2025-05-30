@@ -13,7 +13,20 @@ ward_code = "E05000138"
 
 def timeseries(ward_code: str):
     # Load DBhandler to get data path
-    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v3.db")
+    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
+    # Create a temporary table for the selected ward
+    create_temp_table_query = f"""
+        CREATE TEMP TABLE IF NOT EXISTS temp_crime_{ward_code} AS
+        SELECT * FROM crime
+        WHERE ward_code = '{ward_code}';
+    """
+    db_handler.update(create_temp_table_query) 
+
+    # Output sample of the temporary table to confirm correctness
+    sample_temp_table_query = f"SELECT * FROM temp_crime_{ward_code} LIMIT 5;"
+    temp_table_sample = db_handler.query(sample_temp_table_query)
+    print(f"Sample data from temp_crime_{ward_code}:\n", temp_table_sample)
+
     db_handler.close_connection_db()
 
     # Load CSV
