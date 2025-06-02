@@ -325,6 +325,7 @@ class DBhandler:
         cursor.execute(query_txt)
         self.con.commit()
 
-        print('\nDatabase updated!\n')
+        if self.verbose==1:
+            print('\nDatabase updated!\n')
 
         return None
