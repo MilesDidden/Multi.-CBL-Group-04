@@ -1,7 +1,7 @@
 import sqlite3
 import pandas as pd
 
-def load_crime_data(ward_code: str, db_path: str = "data/crime_data_UK_v3.db") -> pd.DataFrame:
+def load_crime_data(ward_code: str, db_path: str = "data/crime_data_UK_v4.db") -> pd.DataFrame:
     """
     Loads burglary crime data for a given ward_code from the database.
     """
@@ -34,7 +34,7 @@ def load_forecast_plot(ward_code):
 
 
 
-def load_ward_options(db_path: str = "data/crime_data_UK_v3.db"):
+def load_ward_options(db_path: str = "data/crime_data_UK_v4.db"):
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()

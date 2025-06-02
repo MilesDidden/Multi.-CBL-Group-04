@@ -1,3 +1,4 @@
 /data
 *.csv
 *.parquet
+.DS_Store

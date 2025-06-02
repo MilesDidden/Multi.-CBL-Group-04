@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("data/crime_data_UK_v3.db")
+conn = sqlite3.connect("data/crime_data_UK_v4.db")
 cursor = conn.cursor()
 
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -12,7 +12,7 @@ for table in tables:
 
 conn.close()
 
-def load_ward_options(db_path: str = "data/crime_data_UK_v3.db"):
+def load_ward_options(db_path: str = "data/crime_data_UK_v4.db"):
     try:
         conn = sqlite3.connect(db_path)
         query = "SELECT ward_code, ward_name FROM ward_location"
