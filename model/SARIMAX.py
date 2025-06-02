@@ -11,10 +11,6 @@ import plotly.graph_objects as go
 
 def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
     # Load DBhandler to get data path
-<<<<<<< HEAD
-    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
-    db_handler.close_connection_db()
-=======
     db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)
 
     df = db_handler.query(
@@ -25,7 +21,6 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
             temp_crime_{ward_code}
         """
     )
->>>>>>> f5326619ce8027721403172662767da526ea8286
 
     db_handler.close_connection_db()
 

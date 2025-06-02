@@ -9,22 +9,7 @@ import pandas as pd
 import time
 
 
-<<<<<<< HEAD
-CPU_COUNT = psutil.cpu_count(logical=False)
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = "crime_data_UK_v4.db"
-DB_NAME = "crime_data_UK_v4.db"
-
-# Temp paths for parquet files
-IMD_PARQUET = os.path.join(os.path.abspath(os.path.join(SCRIPT_DIR, DB_PATH)), "imd_data_temp.parquet")
-WARD_PARQUET = os.path.join(os.path.abspath(os.path.join(SCRIPT_DIR, DB_PATH)), "ward_data_temp.parquet")
-
-
-def process_chunk(offset: int, chunk_size: int):
-=======
 def process_chunk(offset: int, chunk_size: int, imd_parquet_loc: str, ward_parquet_loc: str, worker: int) -> None:
->>>>>>> f5326619ce8027721403172662767da526ea8286
     # Load IMD and ward data inside each process from Parquet
     imd_data = pd.read_parquet(imd_parquet_loc)
     ward_data = pd.read_parquet(ward_parquet_loc)
