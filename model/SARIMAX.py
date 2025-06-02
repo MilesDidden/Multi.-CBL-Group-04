@@ -3,46 +3,27 @@ from DB_utils import DBhandler
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
-import os
 import plotly.graph_objects as go
-import plotly.io as pio
-from sklearn.cluster import KMeans
 
 
-ward_code = "E05000138"
-n_officers = 100
-
-
-def timeseries(ward_code: str):
+def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
     # Load DBhandler to get data path
-    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
+    db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)
 
-    #ADDED TO K-MEANS class
-    # # Create a temporary table for the selected ward
-    # create_temp_table_query = f"""
-    #     CREATE TABLE IF NOT EXISTS temp_crime_{ward_code} AS
-    #     SELECT * FROM crime
-    #     WHERE ward_code = '{ward_code}';
-    # """
-    # db_handler.update(create_temp_table_query) 
-
-    # # Output sample of the temporary table to confirm correctness
-    # sample_temp_table_query = f"SELECT * FROM temp_crime_{ward_code} LIMIT 5;"
-    # temp_table_sample = db_handler.query(sample_temp_table_query)
-    # print(f"Sample data from temp_crime_{ward_code}:\n", temp_table_sample)
+    df = db_handler.query(
+        f"""
+        SELECT
+            *
+        FROM
+            temp_crime_{ward_code}
+        """
+    )
 
     db_handler.close_connection_db()
 
-    # Load CSV
-    try:
-        df = pd.read_csv(os.path.join(db_handler.db_loc, "temp_results.csv"), index_col=False, low_memory=False)
-    except:
-        raise ValueError("\nData file not found!\n")
-
     df["month"] = pd.to_datetime(df['month'])
 
-    # Filter and aggregate by ward and month
-    df = df[df["ward_code"] == ward_code]
+    # Filter and aggregate by month
     df = df.groupby("month").agg(
         num_of_crimes=("crime_id", "count"),
         avg_imd=("average_imd_decile", "mean")
@@ -54,14 +35,23 @@ def timeseries(ward_code: str):
 
     # Check stationarity using ADFuller
     adfuller_test = adfuller(df["num_of_crimes"])
-    print(f"ADF p-value: {adfuller_test[1]}")
+    # print(f"ADF p-value: {adfuller_test[1]}")
+
+    if adfuller_test[1] < 0.05:
+        # stationary
+        p_d_q = (1, 1, 0)
+        p_d_q_s = (1, 1, 0, 12)
+    else:
+        # Non-stationary, hence need to make stationary by using differencing
+        p_d_q = (1, 1, 1)
+        p_d_q_s = (1, 1, 1, 12)
 
     # Fit SARIMAX model
     sarimax = sm.tsa.statespace.SARIMAX(
         df["num_of_crimes"],
         exog=df["avg_imd"],
-        order=(1, 1, 0),
-        seasonal_order=(1, 0, 0, 12),
+        order=p_d_q,
+        seasonal_order=p_d_q_s,
         enforce_stationarity=False,
         enforce_invertibility=False
     )
@@ -79,8 +69,8 @@ def timeseries(ward_code: str):
         model = sm.tsa.statespace.SARIMAX(
             endog_train,
             exog=exog_train,
-            order=(1, 1, 0),
-            seasonal_order=(1, 0, 0, 12),
+            order=p_d_q,
+            seasonal_order=p_d_q_s,
             enforce_stationarity=False,
             enforce_invertibility=False
         )
@@ -100,13 +90,13 @@ def timeseries(ward_code: str):
     model = sm.tsa.statespace.SARIMAX(
         endog_train,
         exog=exog_train,
-        order=(1, 1, 0),
-        seasonal_order=(1, 0, 0, 12),
+        order=p_d_q,
+        seasonal_order=p_d_q_s,
         enforce_stationarity=False,
         enforce_invertibility=False
     )
     step_model = model.filter(results.params)
-    forecast_next_month = step_model.forecast(steps=1, exog=exog_forecast)[0]
+    forecast_next_month = step_model.forecast(steps=1, exog=exog_forecast).iloc[0]
 
     # Plotly figure
     fig = go.Figure()
@@ -171,48 +161,3 @@ def timeseries(ward_code: str):
     )
 
     return fig, forecast_next_month
-
-
-if __name__ == "__main__":
-    fig, forecasted_num_of_crimes = timeseries(ward_code=ward_code)
-    pio.write_html(fig, file="forecast_plot.html", auto_open=True)
-    # print(forecasted_num_of_crimes)
-
-
-#ADDED TO K-MEANS class
-# def run_kmeans(ward_code: str, n_clusters: int = 100):
-#     # Initialize DB connection
-#     db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
-
-#     # Query lat, long from temp table
-#     crime_query = f"""
-#     SELECT lat AS latitude, long AS longitude
-#     FROM temp_crime_{ward_code}
-#     WHERE lat IS NOT NULL AND long IS NOT NULL;
-#     """
-#     crime_locations = db_handler.query(crime_query)
-
-#     if crime_locations.empty:
-#         raise ValueError(f"No valid lat/long entries found for ward {ward_code}")
-
-#     # Convert to NumPy array for clustering
-#     coords = crime_locations[["latitude", "longitude"]].to_numpy()
-
-#     # KMeans clustering
-#     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-#     kmeans.fit(coords)
-#     centroids = kmeans.cluster_centers_
-
-#     # Clean up: Drop temp table
-#     drop_query = f"DROP TABLE IF EXISTS temp_crime_{ward_code};"
-#     db_handler.update(drop_query)
-
-#     db_handler.close_connection_db()
-
-#     # Return centroids and full dataframe (optional: can be used for plotting)
-#     crime_locations["cluster"] = kmeans.labels_
-#     return centroids, crime_locations
-
-# if __name__ == "__main__":
-#     centroids, clustered_data = run_kmeans(ward_code)
-#     print(f"Centroids for {ward_code}:\n", centroids)
