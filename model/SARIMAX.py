@@ -1,4 +1,7 @@
-from DB_utils import DBhandler
+#from DB_utils import DBhandler
+
+# need to specify 
+from model.DB_utils import DBhandler 
 
 import pandas as pd
 import statsmodels.api as sm
@@ -13,7 +16,7 @@ ward_code = "E05000138"
 
 def timeseries(ward_code: str):
     # Load DBhandler to get data path
-    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v3.db")
+    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
     db_handler.close_connection_db()
 
     # Load CSV

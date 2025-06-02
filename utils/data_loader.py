@@ -3,7 +3,7 @@ import pandas as pd
 
 def load_crime_data(ward_code: str, db_path: str = "data/crime_data_UK_v3.db") -> pd.DataFrame:
     """
-    Loads burglary crime data for a given ward_code from the SQLite database.
+    Loads burglary crime data for a given ward_code from the database.
     """
     query = f"""
         SELECT * FROM crime
@@ -42,7 +42,6 @@ def load_ward_options(db_path: str = "data/crime_data_UK_v3.db"):
         rows = cursor.fetchall()
         conn.close()
 
-        # Format for Dash dropdown
         return [{"label": name, "value": code} for code, name in rows]
 
     except Exception as e:

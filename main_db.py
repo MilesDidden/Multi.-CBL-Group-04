@@ -11,8 +11,8 @@ import pandas as pd
 CPU_COUNT = psutil.cpu_count(logical=False)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = "../data/"
-DB_NAME = "crime_data_UK_v3.db"
+DB_PATH = "crime_data_UK_v4.db"
+DB_NAME = "crime_data_UK_v4.db"
 
 # Temp paths for parquet files
 IMD_PARQUET = os.path.join(os.path.abspath(os.path.join(SCRIPT_DIR, DB_PATH)), "imd_data_temp.parquet")
