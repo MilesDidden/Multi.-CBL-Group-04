@@ -157,7 +157,7 @@ def read_and_transform_stringency_data(path: str)-> pd.DataFrame:
 
 class DBhandler:
 
-    def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v3.db', verbose: int=1) -> None:
+    def __init__(self, db_loc: str= '../data/', db_name: str= 'crime_data_UK_v4.db', verbose: int=1) -> None:
         
         self.existing_crime_ids = set()
 
@@ -313,3 +313,19 @@ class DBhandler:
             print(f"\nTime it took to run the query: {(time.time()-t0):2f}")
 
         return temp_df
+    
+
+    # Make updates
+    def update(self, query_txt: str) -> None:
+        if self.con is None:
+            raise ValueError("No active database connection. Open the connection first.")
+        
+        cursor = self.con.cursor()
+
+        cursor.execute(query_txt)
+        self.con.commit()
+
+        if self.verbose==1:
+            print('\nDatabase updated!\n')
+
+        return None
