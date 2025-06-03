@@ -55,7 +55,7 @@ def process_chunk(offset: int, chunk_size: int, imd_parquet_loc: str, ward_parqu
 if __name__ == "__main__":
 
     # Establish connection
-    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v3.db")
+    db_handler = DBhandler(db_loc="../data", db_name="crime_data_UK_v4.db")
 
     # # Create table force_districts
     # db_handler.create_table(

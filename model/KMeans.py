@@ -1,4 +1,4 @@
-from DB_utils import DBhandler
+from model.DB_utils import DBhandler
 from sklearn.cluster import KMeans
 import plotly.graph_objects as go
 

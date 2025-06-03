@@ -1,17 +1,23 @@
 import dash
 from dash import dcc, html
-from dash.dependencies import Input, Output, State
-from model.SARIMAX import timeseries  
+from dash.dependencies import Input, Output, State  
 import plotly.express as px
 import pandas as pd
 from utils.data_loader import load_crime_data  
 from utils.data_loader import load_ward_options
+from utils.data_loader import get_forecast_plot_and_value, get_clustered_map
 
 
 WARD_OPTIONS = load_ward_options()
 
+app = dash.Dash(__name__)
+app.title = "Police Resource Dashboard"
+
 app.layout = html.Div([
     html.H1("Burglary Forecasting & Officer Deployment", style={"textAlign": "center"}),
+    
+    html.Div("Select a ward and run the simulation.", 
+             style={"textAlign": "center", "color": "#003366", "marginTop": "10px", "marginBottom": "20px"}),
 
     html.Div([
         html.Label("Select Ward:"),
@@ -36,57 +42,41 @@ app.layout = html.Div([
         html.Br(), html.Br(),
 
         dcc.Graph(id="forecast-graph"),
+        html.Div(id="forecast-text", style={"textAlign": "center", "marginTop": "20px"}),
+
         html.Br(),
         dcc.Graph(id="deployment-map")
     ], style={"width": "70%", "margin": "auto"})
 ])
 
-# Forecast callback
+
+from utils.data_loader import get_forecast_plot_and_value
+
 @app.callback(
     Output("forecast-graph", "figure"),
-    Input("simulate-button", "n_clicks"),
-    State("ward-dropdown", "value"),
-    State("officer-slider", "value")
-)
-def update_forecast_graph(n_clicks, ward_code, num_officers):
-    if n_clicks == 0:
-        return {}
-    
-    fig, forecast_value = timeseries(ward_code)
-    return fig
-
-# Deployment map callback (placeholder map)
-@app.callback(
+    Output("forecast-text", "children"),
     Output("deployment-map", "figure"),
     Input("simulate-button", "n_clicks"),
     State("ward-dropdown", "value"),
     State("officer-slider", "value")
 )
-def update_deployment_map(n_clicks, ward_code, num_officers):
-    if n_clicks == 0:
-        return {}
+def update_dashboard(n_clicks, ward_code, num_officers):
+    if n_clicks == 0 or ward_code is None:
+        return {}, "", px.scatter_mapbox(pd.DataFrame(), lat=[], lon=[], title="")
 
-    # Placeholder random coordinates in London
-    officer_positions = pd.DataFrame({
-        "lat": [51.51, 51.52, 51.50],
-        "lon": [-0.12, -0.10, -0.11],
-        "officer_id": ["Officer A", "Officer B", "Officer C"]
-    })
+    try:
+        # Forecast
+        fig_forecast, forecast_value = get_forecast_plot_and_value(ward_code)
+        forecast_text = f"Predicted burglaries for next month: {forecast_value:.2f}" if isinstance(forecast_value, (int, float)) else forecast_value
 
-    fig = px.scatter_mapbox(
-        officer_positions,
-        lat="lat",
-        lon="lon",
-        hover_name="officer_id",
-        zoom=12,
-        center={"lat": 51.51, "lon": -0.11}
-    )
-    fig.update_layout(
-        mapbox_style="open-street-map",
-        title=f"Police Officer Deployment – Ward {ward_code}",
-        margin={"r": 0, "t": 30, "l": 0, "b": 0}
-    )
-    return fig
+        # Map
+        fig_map = get_clustered_map(ward_code=ward_code, num_officers=num_officers, external_forecast_value=forecast_value)
+
+        return fig_forecast, forecast_text, fig_map
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return {}, "An error occurred.", px.scatter_mapbox(pd.DataFrame(), lat=[], lon=[], title="Error")
 
 if __name__ == "__main__":
     app.run_server(debug=True)

@@ -1,4 +1,4 @@
-from DB_utils import DBhandler
+from model.DB_utils import DBhandler
 
 
 def create_temp_table(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db")-> None:
@@ -11,6 +11,7 @@ def create_temp_table(ward_code: str, db_loc: str="../data/", db_name: str="crim
             SELECT * FROM crime
             WHERE ward_code = '{ward_code}';
         """
+
     db_handler.update(create_temp_table_query) 
 
     db_handler.close_connection_db()

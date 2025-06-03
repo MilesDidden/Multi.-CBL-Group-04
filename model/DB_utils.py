@@ -166,6 +166,11 @@ class DBhandler:
         self.db_name = db_name
         self.db_path = os.path.join(self.db_loc, self.db_name)
 
+        #debugging line
+        print(f"✅ DEBUG: DB path resolved to → {self.db_path}")
+        print(f"✅ DEBUG: Writable? → {os.access(self.db_path, os.W_OK)}")
+
+
         self.verbose = verbose
 
         if not os.path.exists(self.db_path):
@@ -173,14 +178,14 @@ class DBhandler:
                 print("\nDatabase not found! Creating new database ...\n")
 
             try:
-                self.con = sqlite3.connect(self.db_path)
+                self.con = sqlite3.connect(f"file:{self.db_path}?mode=rwc", uri=True)
                 if self.verbose==1:
                     print(f"\nDatabase created at {self.db_path}\n")
             except:
                 raise ValueError("\nInvalid database location!\n")
             
         else:
-            self.con = sqlite3.connect(self.db_path)
+            self.con = sqlite3.connect(f"file:{self.db_path}?mode=rwc", uri=True)
             if self.verbose==1:
                 print("\nEstablished connection with database!\n")
 
@@ -193,7 +198,7 @@ class DBhandler:
         if self.db_path is None:
             raise ValueError("Make sure the database location is correct!")
         
-        self.con = sqlite3.connect(self.db_path)
+        self.con = sqlite3.connect(f"file:{self.db_path}?mode=rwc", uri=True)
 
         print("\nConnection Opened!\n")
 
@@ -329,3 +334,4 @@ class DBhandler:
             print('\nDatabase updated!\n')
 
         return None
+
