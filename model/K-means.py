@@ -42,6 +42,7 @@ def run_kmeans(ward_code: str, n_clusters: int = 100):
     kmeans.fit(coords)
     centroids = kmeans.cluster_centers_
 
+    db_handler.close_connection_db()
 
     # Return centroids and full dataframe
     crime_locations["cluster"] = kmeans.labels_
@@ -101,7 +102,9 @@ if __name__ == "__main__":
         fig = plot_kmeans_clusters(clustered_data, centroids, ward_code)
         fig.write_html("kmeans_clusters_plot.html", auto_open=True)
 
-# Clean up: Drop temp table
-drop_query = f"DROP TABLE IF EXISTS temp_crime_{ward_code};"
-db_handler.update(drop_query)
-db_handler.close_connection_db()
+    
+    # Clean up: Drop temp table
+    db_handler = DBhandler(db_loc="../data/", db_name="crime_data_UK_v4.db")
+    drop_query = f"DROP TABLE IF EXISTS temp_crime_{ward_code};"
+    db_handler.update(drop_query)
+    db_handler.close_connection_db()
