@@ -11,9 +11,9 @@ def VRP(crime_locations, officer_location, api: str=ors_api):
     #Simple single route optimization
     client = ors.Client(key=ors_api)
     for location in officer_location:
-        ors.optimization.location(jobs=jobs)
+        location = client.optimization(jobs=jobs) 
     for crime in crime_locations:
-        ors.optimization.job(jobs=jobs)
+        crime = client.optimization(jobs=jobs)
     optimized = client.optimization(jobs=jobs, officer_location = officer_location, geometry=True)
     
     #jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
