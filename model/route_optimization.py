@@ -10,16 +10,39 @@ def VRP(crime_locations, officer_location, api: str=ors_api):
     ### Implementation ###
     #Simple single route optimization
     client = ors.Client(key=ors_api)
-    for location in officer_location:
-        location = client.optimization(crime_locations=crime_locations) 
-    for crime in crime_locations:
-        crime = client.optimization(crime_locations=crime_locations)
-    optimized = client.optimization(crime_locations=crime_locations, officer_location = officer_location, geometry=True)
+    jobs = []
+    for i, (lat, lon) in enumerate(crime_locations):
+        jobs.append({
+            "id": i,
+            "location": [lon, lat]  # ORS usa [lon, lat]
+        })
+    
+    vehicles = []
+    for i, (lat, lon) in enumerate(officer_locations):
+        vehicles.append({
+            "id": i,
+            "start": [lon, lat],
+            "end": [lon, lat],
+            "time_window": [0, 8 * 60 * 60],  # jornada de 8 horas
+            "profile": "driving-car"
+        })
+    
+    optimized = client.optimization(jobs=jobs, vehicles=vehicles, geometry=True)
+    return optimized
+    
+    
+    
+    
+    #for location in officer_location:
+    #    location = client.optimization(crime_locations=crime_locations) 
+    #for crime in crime_locations:
+    #    crime = client.optimization(crime_locations=crime_locations)
+    #optimized = client.optimization(crime_locations=crime_locations, officer_location = officer_location, geometry=True)
     
     #jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
     #optimized = client.optimization(jobs=jobs, officer_location = officer_location, geometry=True)
 
-    return optimized 
+    #return optimized 
 
 
 if __name__ == "__main__":
