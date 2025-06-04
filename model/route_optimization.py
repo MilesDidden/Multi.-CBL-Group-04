@@ -1,5 +1,5 @@
 import math
-import openrouteservices as ors
+import openrouteservice as ors
 from DB_utils import DBhandler
 import random
 
@@ -11,13 +11,10 @@ def VRP(crime_locations, officer_location, api: str=ors_api):
     #Simple single route optimization
     client = ors.Client(key='YOUR_KEY_HERE')
     # time_window = maximum number of hours a police officer can work on a day (Do we need it?)
-    police_officers = [
-        ors.optimization.officer(id=0, profile='agent', start=officer_location, end=officer_location, time_window=[0, 8*60*60]),
-        ors.optimization.officer(id=1, profile='agent', start=officer_location, end=officer_location, time_window=[0, 8*60*60])
-    ]
+    
     
     jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
-    optimized = client.optimization(jobs=jobs, police_officers = police_officers, geometry=True)
+    optimized = client.optimization(jobs=jobs, officer_location = officer_location, geometry=True)
 
     return optimized 
 
