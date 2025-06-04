@@ -1,3 +1,4 @@
+import math
 import openrouteservices as ors
 from DB_utils import DBhandler
 import random
@@ -7,14 +8,18 @@ ors_api = "5b3ce3597851110001cf6248e221bd2f17534d91b74e79bba6167299"
 
 def VRP(crime_locations, officer_location, api: str=ors_api):
     ### Implementation ###
-    #
-    #
-    #
-    #
-    #
+    #Simple single route optimization
+    client = ors.Client(key='YOUR_KEY_HERE')
+    # time_window = maximum number of hours a police officer can work on a day (Do we need it?)
+    police_officers = [
+        ors.optimization.officer(id=0, profile='agent', start=officer_location, end=officer_location, time_window=[0, 8*60*60]),
+        ors.optimization.officer(id=1, profile='agent', start=officer_location, end=officer_location, time_window=[0, 8*60*60])
+    ]
+    
+    jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
+    optimized = client.optimization(jobs=jobs, police_officers = police_officers, geometry=True)
 
-
-    pass # Make sure to use "return" to return the output of the function and remove "pass"
+    return optimized 
 
 
 if __name__ == "__main__":
