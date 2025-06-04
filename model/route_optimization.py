@@ -8,13 +8,17 @@ ors_api = "5b3ce3597851110001cf6248e221bd2f17534d91b74e79bba6167299"
 
 def VRP(crime_locations, officer_location, api: str=ors_api):
     ### Implementation ###
+    ors_api_key(ors_api)
     #Simple single route optimization
     client = ors.Client(key='YOUR_KEY_HERE')
-    # time_window = maximum number of hours a police officer can work on a day (Do we need it?)
-    
-    
-    jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
+    for location in officer_location:
+        ors.optimization.location(jobs=jobs)
+    for crime in crime_locations:
+        ors.optimization.job(jobs=jobs)
     optimized = client.optimization(jobs=jobs, officer_location = officer_location, geometry=True)
+    
+    #jobs = [ors.optimization.Job(id=index, **job) for index, job in enumerate(crime_locations)]
+    #optimized = client.optimization(jobs=jobs, officer_location = officer_location, geometry=True)
 
     return optimized 
 
