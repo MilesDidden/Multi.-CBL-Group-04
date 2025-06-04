@@ -8,9 +8,8 @@ ors_api = "5b3ce3597851110001cf6248e221bd2f17534d91b74e79bba6167299"
 
 def VRP(crime_locations, officer_location, api: str=ors_api):
     ### Implementation ###
-    ors_api_key(ors_api)
     #Simple single route optimization
-    client = ors.Client(key='YOUR_KEY_HERE')
+    client = ors.Client(key=ors_api)
     for location in officer_location:
         ors.optimization.location(jobs=jobs)
     for crime in crime_locations:
