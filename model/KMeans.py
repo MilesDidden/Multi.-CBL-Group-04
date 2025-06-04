@@ -44,47 +44,107 @@ def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str
     return centroids, crime_locations
 
 
+# def plot_kmeans_clusters(clustered_data, centroids, ward_code):
+#     fig = go.Figure()
+
+#     # Add points for each cluster
+#     for cluster_id in clustered_data["cluster"].unique():
+#         cluster_points = clustered_data[clustered_data["cluster"] == cluster_id]
+#         fig.add_trace(go.Scattergeo(
+#             lon=cluster_points["longitude"],
+#             lat=cluster_points["latitude"],
+#             mode="markers",
+#             marker=dict(size=5),
+#             name=f"Cluster {cluster_id}",
+#             showlegend=False
+#         ))
+
+#     # Add centroids
+#     centroid_lats = centroids[:, 0]
+#     centroid_lons = centroids[:, 1]
+#     fig.add_trace(go.Scattergeo(
+#         lon=centroid_lons,
+#         lat=centroid_lats,
+#         mode="markers",
+#         marker=dict(size=10, symbol="x", color="black"),
+#         name="Police Officers"
+#     ))
+
+#     fig.update_layout(
+#     title=f"K-Means Clustering of Crimes in Ward {ward_code}",
+#     autosize=True,
+#     height=800,
+#     margin=dict(l=0, r=0, t=50, b=0),
+#     geo=dict(
+#         scope='europe',
+#         showland=True,
+#         landcolor="rgb(243, 243, 243)",
+#         showcountries=False,
+#         lataxis=dict(range=[min(clustered_data["latitude"]) - 0.01,
+#                             max(clustered_data["latitude"]) + 0.01]),
+#         lonaxis=dict(range=[min(clustered_data["longitude"]) - 0.01,
+#                             max(clustered_data["longitude"]) + 0.01]),
+#         )  
+#     )
+
+#     return fig
+
+
 def plot_kmeans_clusters(clustered_data, centroids, ward_code):
+
     fig = go.Figure()
 
-    # Add points for each cluster
-    for cluster_id in clustered_data["cluster"].unique():
-        cluster_points = clustered_data[clustered_data["cluster"] == cluster_id]
-        fig.add_trace(go.Scattergeo(
-            lon=cluster_points["longitude"],
-            lat=cluster_points["latitude"],
-            mode="markers",
-            marker=dict(size=5),
-            name=f"Cluster {cluster_id}",
-            showlegend=False
-        ))
-
-    # Add centroids
-    centroid_lats = centroids[:, 0]
-    centroid_lons = centroids[:, 1]
-    fig.add_trace(go.Scattergeo(
-        lon=centroid_lons,
-        lat=centroid_lats,
+    # Crime cluster points
+    fig.add_trace(go.Scattermapbox(
+        lat=clustered_data["latitude"],
+        lon=clustered_data["longitude"],
         mode="markers",
-        marker=dict(size=10, symbol="x", color="black"),
-        name="Police Officers"
+        marker=dict(
+            size=8,
+            color=clustered_data["cluster"],
+            colorscale="Viridis",
+            opacity=0.7,
+            showscale=False
+        ),
+        name="Crime Clusters",
+        hoverinfo="text",
+        text=[f"Cluster {c}" for c in clustered_data["cluster"]]
+    ))
+
+    # Prepare custom hover text for centroids
+    centroid_hover_texts = [
+        f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
+        for i, (lat, lon) in enumerate(centroids)
+    ]
+
+    # Police officer centroid markers
+    fig.add_trace(go.Scattermapbox(
+        lat=centroids[:, 0],
+        lon=centroids[:, 1],
+        mode="markers+text",
+        marker=dict(
+            size=14,
+            color="black",
+            symbol="x"
+        ),
+        name="Police Officers",
+        text=["X"] * len(centroids),
+        textfont=dict(size=14, color="black"),
+        textposition="middle center",
+        hoverinfo="text",
+        hovertext=centroid_hover_texts
     ))
 
     fig.update_layout(
-    title=f"K-Means Clustering of Crimes in Ward {ward_code}",
-    autosize=True,
-    height=800,
-    margin=dict(l=0, r=0, t=50, b=0),
-    geo=dict(
-        scope='europe',
-        showland=True,
-        landcolor="rgb(243, 243, 243)",
-        showcountries=False,
-        lataxis=dict(range=[min(clustered_data["latitude"]) - 0.01,
-                            max(clustered_data["latitude"]) + 0.01]),
-        lonaxis=dict(range=[min(clustered_data["longitude"]) - 0.01,
-                            max(clustered_data["longitude"]) + 0.01]),
-        )  
+        mapbox=dict(
+            style="open-street-map",
+            zoom=11,
+            center=dict(lat=51.5074, lon=-0.1278)
+        ),
+        title=f"K-Means Clustering of Crimes in Ward {ward_code}",
+        autosize=True,
+        height=800,
+        margin=dict(l=0, r=0, t=50, b=0)
     )
 
     return fig
