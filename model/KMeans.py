@@ -2,11 +2,9 @@ from DB_utils import DBhandler
 from sklearn.cluster import KMeans
 import plotly.graph_objects as go
 
-
 def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
     # Initialize DB connection
     db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)
-
     # Query lat, long from temp table
     crime_query = f"""
     SELECT 
@@ -44,7 +42,8 @@ def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str
     return centroids, crime_locations
 
 
-def plot_kmeans_clusters(clustered_data, centroids, ward_code):
+
+def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc="../data/", db_name="crime_data_UK_v4.db"):
 
     fig = go.Figure()
 
@@ -54,10 +53,10 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
         lon=clustered_data["longitude"],
         mode="markers",
         marker=dict(
-            size=8,
+            size=10,
             color=clustered_data["cluster"],
             colorscale="Viridis",
-            opacity=0.7,
+            opacity=0.85,
             showscale=False
         ),
         name="Crime Clusters",
@@ -65,7 +64,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
         text=[f"Cluster {c}" for c in clustered_data["cluster"]]
     ))
 
-    # Prepare custom hover text for centroids
+    # Prepare custom hover text for police officers
     centroid_hover_texts = [
         f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
         for i, (lat, lon) in enumerate(centroids)
@@ -77,13 +76,13 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
         lon=centroids[:, 1],
         mode="markers+text",
         marker=dict(
-            size=14,
-            color="black",
-            symbol="x"
+            size=20,
+            color="red",
+            symbol="cross",
         ),
         name="Police Officers",
         text=["X"] * len(centroids),
-        textfont=dict(size=14, color="black"),
+        textfont=dict(size=18, color="black"),
         textposition="middle center",
         hoverinfo="text",
         hovertext=centroid_hover_texts
@@ -91,7 +90,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
 
     fig.update_layout(
         mapbox=dict(
-            style="open-street-map",
+            style="carto-positron",
             zoom=11,
             center=dict(lat=51.5074, lon=-0.1278)
         ),
