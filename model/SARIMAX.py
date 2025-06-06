@@ -30,6 +30,8 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
         covid_index=("stringency_index", "first")
     ).sort_index()
 
+    weight_imd = df["avg_imd"].iloc[-1]
+
     df = df.asfreq("MS")  # Monthly frequency
     df["num_of_crimes"] = df["num_of_crimes"].fillna(0)
     df["avg_imd"] = df["avg_imd"].interpolate()
@@ -161,4 +163,4 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
         margin=dict(l=40, r=20, t=50, b=40)
     )
 
-    return fig, forecast_next_month
+    return fig, forecast_next_month, weight_imd

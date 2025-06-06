@@ -1,15 +1,18 @@
 from DB_utils import DBhandler
-from sklearn.cluster import KMeans
 import plotly.graph_objects as go
 from shapely import wkt
 import geopandas as gpd
+import numpy as np
+from sklearn.metrics import pairwise_distances_argmin
 
 db_loc = "../data/"
 db_name = "crime_data_UK_v4.db"
 
-def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
+
+def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clusters: int = 100, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
     db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)
-    # Query lat, long from temp table
+
+    # Query lat/long from temp crime table
     crime_query = f"""
     SELECT 
         lat AS latitude, 
@@ -24,26 +27,52 @@ def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str
     LIMIT 
         {int(n_crimes)};
     """
-
     crime_locations = db_handler.query(crime_query)
-
     db_handler.close_connection_db()
 
     if crime_locations.empty:
         raise ValueError(f"No valid lat/long entries found for ward {ward_code}")
 
-    # Convert to NumPy array for clustering
     coords = crime_locations[["latitude", "longitude"]].to_numpy()
 
-    # KMeans clustering
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    kmeans.fit(coords)
-    centroids = kmeans.cluster_centers_
+    # Weighted K-means Core Logic
+    # Invert IMD so that lower deprivation score → higher weight
+    ward_weight = 10 - imd_value
+    weights = np.full(coords.shape[0], ward_weight)
 
-    # Return centroids and full dataframe
-    crime_locations["cluster"] = kmeans.labels_
-    
+
+    # Initialize centroids randomly
+    rng = np.random.default_rng(42)
+    initial_idxs = rng.choice(coords.shape[0], n_clusters, replace=False)
+    centroids = coords[initial_idxs]
+
+    max_iter = 100
+    tol = 1e-4
+
+    for _ in range(max_iter):
+        # Step 1: Assign points to nearest centroid
+        labels = pairwise_distances_argmin(coords, centroids)
+
+        # Step 2: Update centroids with weights
+        new_centroids = np.zeros_like(centroids)
+        for i in range(n_clusters):
+            mask = labels == i
+            if not np.any(mask):
+                # Reinitialize empty clusters
+                new_centroids[i] = coords[rng.choice(coords.shape[0])]
+                continue
+            cluster_points = coords[mask]
+            cluster_weights = weights[mask]
+            new_centroids[i] = np.average(cluster_points, axis=0, weights=cluster_weights)
+
+        # Step 3: Check convergence
+        if np.linalg.norm(new_centroids - centroids) < tol:
+            break
+        centroids = new_centroids
+
+    crime_locations["cluster"] = labels
     return centroids, crime_locations
+
 
 def plot_kmeans_clusters(clustered_data, centroids, ward_code):
 
@@ -112,8 +141,8 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
 
     # Extract coordinates
     boundary_coords = list(geom.exterior.coords)
-    boundary_lon = [lon for lon, lat in boundary_coords]
-    boundary_lat = [lat for lon, lat in boundary_coords]
+    boundary_lon = [lon for lon, _ in boundary_coords]
+    boundary_lat = [lat for _, lat in boundary_coords]
 
     fig.add_trace(go.Scattermapbox(
         lat=boundary_lat + [boundary_lat[0]],
