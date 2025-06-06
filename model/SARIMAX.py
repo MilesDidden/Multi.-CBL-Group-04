@@ -26,7 +26,8 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
     # Filter and aggregate by month
     df = df.groupby("month").agg(
         num_of_crimes=("crime_id", "count"),
-        avg_imd=("average_imd_decile", "mean")
+        avg_imd=("average_imd_decile", "mean"),
+        covid_index=("stringency_index", "first")
     ).sort_index()
 
     df = df.asfreq("MS")  # Monthly frequency
@@ -49,7 +50,7 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
     # Fit SARIMAX model
     sarimax = sm.tsa.statespace.SARIMAX(
         df["num_of_crimes"],
-        exog=df["avg_imd"],
+        exog=df[["avg_imd", "covid_index"]],
         order=p_d_q,
         seasonal_order=p_d_q_s,
         enforce_stationarity=False,
@@ -63,8 +64,8 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
     # One-step-ahead forecasts
     for t in range(10, len(df) - 1):
         endog_train = df["num_of_crimes"][:t + 1]
-        exog_train = df["avg_imd"][:t + 1]
-        exog_forecast = df["avg_imd"][t + 1:t + 2]
+        exog_train = df[["avg_imd", "covid_index"]][:t + 1]
+        exog_forecast = df[["avg_imd", "covid_index"]][t + 1:t + 2]
 
         model = sm.tsa.statespace.SARIMAX(
             endog_train,
@@ -84,8 +85,8 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
     next_index = last_index + pd.DateOffset(months=1)
 
     endog_train = df["num_of_crimes"]
-    exog_train = df["avg_imd"]
-    exog_forecast = [df["avg_imd"].iloc[-1]]  # Use last value as estimate
+    exog_train = df[["avg_imd", "covid_index"]]
+    exog_forecast = [df[["avg_imd", "covid_index"]].iloc[-1]]  # Use last value as estimate
 
     model = sm.tsa.statespace.SARIMAX(
         endog_train,
