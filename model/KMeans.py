@@ -1,8 +1,6 @@
 from DB_utils import DBhandler
 from sklearn.cluster import KMeans
 import plotly.graph_objects as go
-import os
-import pandas as pd
 from shapely import wkt
 import geopandas as gpd
 
@@ -46,8 +44,6 @@ def run_kmeans(ward_code: str, n_crimes: int, n_clusters: int = 100, db_loc: str
     crime_locations["cluster"] = kmeans.labels_
     
     return centroids, crime_locations
-
-
 
 def plot_kmeans_clusters(clustered_data, centroids, ward_code):
 
