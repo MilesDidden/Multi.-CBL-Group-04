@@ -4,9 +4,8 @@ from shapely import wkt
 import geopandas as gpd
 import numpy as np
 from sklearn.metrics import pairwise_distances_argmin
-
-db_loc = "../data/"
-db_name = "crime_data_UK_v4.db"
+import pandas as pd
+from geopy.distance import geodesic
 
 
 def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clusters: int = 100, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
@@ -166,3 +165,24 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code):
     )
 
     return fig
+
+
+def calc_avg_distance_between_crime_and_officer(clustered_data, centroids):
+
+    df = pd.merge(
+        left=clustered_data, 
+        right=pd.DataFrame(centroids, columns=["latitude_assigned_officer", "longitude_assigned_officer"]), 
+        how="left", 
+        left_on="cluster", 
+        right_index=True
+        )
+
+    df["distance"] = df.apply(
+        lambda row: geodesic(
+            (row["latitude"], row["longitude"]),
+            (row["latitude_assigned_officer"], row["longitude_assigned_officer"])
+        ).meters,
+        axis=1
+    )
+
+    return df["distance"].mean().round(decimals=3), df["distance"].max().round(decimals=3)
