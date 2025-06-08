@@ -73,7 +73,7 @@ def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clust
     return centroids, crime_locations
 
 
-def plot_kmeans_clusters(clustered_data, centroids, ward_code):
+def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
 
     fig = go.Figure()
 
