@@ -27,7 +27,7 @@ if __name__ == "__main__":
     print(f"Police officers allocation for {ward_code}:\n", centroids)
 
     # Plot KMeans results
-    fig = plot_kmeans_clusters(clustered_data=clustered_data, centroids=centroids, ward_code=ward_code)
+    fig = plot_kmeans_clusters(clustered_data=clustered_data, centroids=centroids, ward_code=ward_code, db_loc=db_loc, db_name=db_name)
     fig.write_html("kmeans_clusters_plot.html", auto_open=True)
 
     # Calculate distances of officers to crimes
