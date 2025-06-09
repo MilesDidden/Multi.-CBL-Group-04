@@ -50,8 +50,6 @@ app.layout = html.Div([
 ])
 
 
-from utils.data_loader import get_forecast_plot_and_value
-
 @app.callback(
     Output("forecast-graph", "figure"),
     Output("forecast-text", "children"),

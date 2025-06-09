@@ -1,5 +1,14 @@
 import sqlite3
 import pandas as pd
+from model.ML_utils import create_temp_table
+from model.KMeans import run_kmeans
+import plotly.express as px
+from model.ML_utils import create_temp_table
+from model.SARIMAX import timeseries
+import os
+import shutil
+import tempfile
+from model.KMeans import run_kmeans, plot_kmeans_clusters  
 
 
 def load_crime_data(ward_code: str, db_path: str = "data/crime_data_UK_v4.db") -> pd.DataFrame:
@@ -22,11 +31,6 @@ def load_crime_data(ward_code: str, db_path: str = "data/crime_data_UK_v4.db") -
         print(f"Error loading data for ward '{ward_code}': {e}")
         return pd.DataFrame()
 
-from model.ML_utils import create_temp_table
-from model.SARIMAX import timeseries
-import os
-import shutil
-import tempfile
 
 
 def get_forecast_plot_and_value(ward_code: str, db_loc: str = "data/", db_name: str = "crime_data_UK_v4.db"):
@@ -71,14 +75,6 @@ def load_ward_options(db_path: str = "data/crime_data_UK_v4.db"):
         print(f"Error loading ward options: {e}")
         return []
 
-
-from model.ML_utils import create_temp_table
-from model.KMeans import run_kmeans
-import plotly.express as px
-
-
-
-from model.KMeans import run_kmeans, plot_kmeans_clusters  
 
 def get_clustered_map(ward_code: str, num_officers: int, external_forecast_value=None, db_loc: str = "data/", db_name: str = "crime_data_UK_v4.db"):
     print(f"Running get_clustered_map for ward {ward_code} with {num_officers} officers")
