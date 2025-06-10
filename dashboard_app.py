@@ -1,12 +1,18 @@
 import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output, State  
+from dash import dcc, html, Input, Output, State
+from dash.exceptions import PreventUpdate
 import plotly.express as px
 import pandas as pd
-from utils.data_loader import load_crime_data  
-from utils.data_loader import load_ward_options
-from utils.data_loader import get_forecast_plot_and_value, get_clustered_map
+import io
+from dash.dcc import Download
+import plotly.graph_objects as go
 
+from utils.data_loader import (
+    load_crime_data,
+    load_ward_options,
+    get_forecast_plot_and_value,
+    get_clustered_map
+)
 
 WARD_OPTIONS = load_ward_options()
 
@@ -14,67 +20,155 @@ app = dash.Dash(__name__)
 app.title = "Police Resource Dashboard"
 
 app.layout = html.Div([
-    html.H1("Burglary Forecasting & Officer Deployment", style={"textAlign": "center"}),
-    
-    html.Div("Select a ward and run the simulation.", 
+    html.H1("Police Resource Planning Dashboard", style={"textAlign": "center"}),
+
+    html.Div("Forecast monthly burglary counts and simulate optimal police deployments across London wards.",
              style={"textAlign": "center", "color": "#003366", "marginTop": "10px", "marginBottom": "20px"}),
 
     html.Div([
+        html.H3("Simulation Parameters", style={"textAlign": "center"}),
+
         html.Label("Select Ward:"),
         dcc.Dropdown(
             id="ward-dropdown",
             options=WARD_OPTIONS,
-            value="E05000138"
+            value=None,
+            placeholder="Select a ward"
         ),
+
+        html.Br(),
 
         html.Label("Number of Officers:"),
         dcc.Slider(
             id="officer-slider",
             min=0,
             max=200,
-            step=1,
+            step=10,
             value=100,
-            marks={0: "0", 100: "100", 200: "200"}
+            marks={i: str(i) for i in range(0, 201, 10)}
         ),
 
         html.Br(),
-        html.Button("Run Simulation", id="simulate-button", n_clicks=0),
-        html.Br(), html.Br(),
 
-        dcc.Graph(id="forecast-graph"),
-        html.Div(id="forecast-text", style={"textAlign": "center", "marginTop": "20px"}),
+        html.Div(html.Button("Run Simulation", id="simulate-button", n_clicks=0),
+                 style={"textAlign": "center"}),
 
+        html.Br()
+    ], style={
+        "width": "70%", "margin": "auto", "padding": "20px",
+        "border": "1px solid #ccc", "borderRadius": "10px"
+    }),
+
+    dcc.Loading(id="loading-output", type="circle", children=html.Div(id="results-section", children=[
+        html.Div(id="forecast-text", style={"textAlign": "center", "fontSize": "20px", "fontWeight": "bold"}),
         html.Br(),
-        dcc.Graph(id="deployment-map")
-    ], style={"width": "70%", "margin": "auto"})
+
+        dcc.Tabs(id="result-tabs", value="forecast-tab", children=[
+            dcc.Tab(label="📈 Forecast Visualization", value="forecast-tab"),
+            dcc.Tab(label="📍 Officer Deployment Map", value="deployment-tab")
+        ]),
+        html.Div(id="tab-content"),
+        html.Br(),
+
+        html.Div(id="download-section", children=[
+            html.Button("Download Officer Locations as CSV", id="download-button"),
+            Download(id="download-cluster-data")
+        ], style={"textAlign": "center", "display": "none"})
+    ], style={"display": "none"})),
+
+    #Hidden Stores for Passing Figures and Data Between Callbacks
+    dcc.Store(id="forecast-fig-store"),
+    dcc.Store(id="deployment-fig-store"),
+    dcc.Store(id="officer-data-store")
 ])
 
-
 @app.callback(
-    Output("forecast-graph", "figure"),
+    Output("forecast-fig-store", "data"),
     Output("forecast-text", "children"),
-    Output("deployment-map", "figure"),
+    Output("deployment-fig-store", "data"),
+    Output("officer-data-store", "data"),
+    Output("results-section", "style"),
+    Output("download-section", "style"),
     Input("simulate-button", "n_clicks"),
     State("ward-dropdown", "value"),
     State("officer-slider", "value")
 )
-def update_dashboard(n_clicks, ward_code, num_officers):
-    if n_clicks == 0 or ward_code is None:
-        return {}, "", px.scatter_mapbox(pd.DataFrame(), lat=[], lon=[], title="")
+def run_simulation(n_clicks, ward_code, num_officers):
+    if not n_clicks or ward_code is None:
+        raise PreventUpdate
 
     try:
-        # Forecast
         fig_forecast, forecast_value = get_forecast_plot_and_value(ward_code)
-        forecast_text = f"Predicted burglaries for next month: {forecast_value:.2f}" if isinstance(forecast_value, (int, float)) else forecast_value
 
-        # Map
-        fig_map = get_clustered_map(ward_code=ward_code, num_officers=num_officers, external_forecast_value=forecast_value)
+        #check both value and figure contents
+        if not isinstance(forecast_value, (int, float)) or not fig_forecast or not fig_forecast.data:
+            return {}, "❌ Forecast unavailable", {}, [], {"display": "block"}, {"display": "none"}
 
-        return fig_forecast, forecast_text, fig_map
+        forecast_text = f"📈 Forecast for Next Month: {forecast_value:.2f} Burglaries"
+
+        fig_map, officer_df = get_clustered_map(
+            ward_code=ward_code,
+            num_officers=num_officers,
+            external_forecast_value=forecast_value,
+            return_df=True
+        )
+
+        return (
+           fig_forecast.to_dict(),  
+           forecast_text,
+           fig_map.to_dict(),       
+           officer_df.to_dict("records"),
+           {"display": "block"},
+           {"display": "block"}
+        )
 
     except Exception as e:
-        print(f"Error: {e}")
-        return {}, "An error occurred.", px.scatter_mapbox(pd.DataFrame(), lat=[], lon=[], title="Error")
+        import traceback
+        traceback.print_exc()
+        return {}, "❌ An error occurred during simulation.", {}, [], {"display": "block"}, {"display": "none"}
+
+
+@app.callback(
+    Output("tab-content", "children"),
+    Input("result-tabs", "value"),
+    State("forecast-fig-store", "data"),
+    State("deployment-fig-store", "data")
+)
+
+def render_tab(tab, forecast_fig, deployment_fig):
+    if tab == "forecast-tab":
+        try:
+            if forecast_fig and isinstance(forecast_fig, dict) and "data" in forecast_fig and forecast_fig["data"]:
+                return dcc.Graph(figure=go.Figure(forecast_fig))
+        except Exception as e:
+            print(f"⚠️ Failed to render forecast figure: {e}")
+        return html.Div("⚠️ Forecast plot not available.")
+
+    elif tab == "deployment-tab":
+        try:
+            if deployment_fig and isinstance(deployment_fig, dict) and "data" in deployment_fig and deployment_fig["data"]:
+                return dcc.Graph(figure=go.Figure(deployment_fig))
+        except Exception as e:
+            print(f"⚠️ Failed to render deployment figure: {e}")
+        return html.Div("⚠️ Deployment map not available.")
+
+    return html.Div("Invalid tab selected.")
+
+# Export CSV
+@app.callback(
+    Output("download-cluster-data", "data"),
+    Input("download-button", "n_clicks"),
+    State("officer-data-store", "data"),
+    prevent_initial_call=True
+)
+def export_csv(n_clicks, data):
+    if not data:
+        raise PreventUpdate
+    df = pd.DataFrame(data)
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+    return dict(content=buffer.getvalue(), filename="officer_clusters.csv", type="text/csv")
 
 if __name__ == "__main__":
     app.run_server(debug=True)

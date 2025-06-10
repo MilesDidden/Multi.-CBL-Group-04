@@ -1,4 +1,4 @@
-from DB_utils import DBhandler
+from model.DB_utils import DBhandler
 import plotly.graph_objects as go
 from shapely import wkt
 import geopandas as gpd
@@ -98,12 +98,12 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
     # Prepare centroid hover text
     centroid_hover_texts = [
         f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
-        for i, (lat, lon) in enumerate(centroids)
+        for i, (lon, lat) in enumerate(centroids)
     ]
 
     fig.add_trace(go.Scattermapbox(
-        lat=centroids[:, 0],
-        lon=centroids[:, 1],
+        lat=centroids[:, 1],
+        lon=centroids[:, 0],
         mode="markers+text",
         marker=dict(
             size=20,
