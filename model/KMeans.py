@@ -186,3 +186,12 @@ def calc_avg_distance_between_crime_and_officer(clustered_data, centroids):
     )
 
     return df["distance"].mean().round(decimals=3), df["distance"].max().round(decimals=3)
+
+
+def calc_street_distance_between_crime_and_officer(clustered_data, centroids):
+    # The algo
+
+
+
+    pass
+    # return mean_distance, max_distance
