@@ -172,4 +172,13 @@ def export_csv(n_clicks, data):
     return dict(content=buffer.getvalue(), filename="officer_clusters.csv", type="text/csv")
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    import threading
+    import webbrowser
+
+    port = 8050  # or any other port you'd like
+    url = f"http://127.0.0.1:{port}/"
+
+    # Start a browser tab shortly after the server starts
+    threading.Timer(1.0, lambda: webbrowser.open_new(url)).start()
+
+    app.run_server(debug=True, port=port)
