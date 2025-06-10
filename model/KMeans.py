@@ -98,7 +98,8 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
     # Prepare centroid hover text
     centroid_hover_texts = [
         f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
-        for i, (lon, lat) in enumerate(centroids)
+        # stays the same, just ensure the unpacking is correct
+        for i, (lat, lon) in enumerate(centroids)
     ]
 
     fig.add_trace(go.Scattermapbox(

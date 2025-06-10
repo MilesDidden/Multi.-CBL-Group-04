@@ -1,6 +1,6 @@
-from ML_utils import create_temp_table, delete_temp_table
-from SARIMAX import timeseries
-from KMeans import run_kmeans_weighted, plot_kmeans_clusters, calc_avg_distance_between_crime_and_officer
+from model.ML_utils import create_temp_table, delete_temp_table
+from model.SARIMAX import timeseries
+from model.KMeans import run_kmeans_weighted, plot_kmeans_clusters, calc_avg_distance_between_crime_and_officer
 
 
 db_loc = "../data/"

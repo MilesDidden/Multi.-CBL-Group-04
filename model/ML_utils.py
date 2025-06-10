@@ -1,6 +1,5 @@
 from model.DB_utils import DBhandler
 
-
 def create_temp_table(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db")-> None:
 
     db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)

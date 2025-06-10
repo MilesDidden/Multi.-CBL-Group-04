@@ -1,8 +1,5 @@
-#from DB_utils import DBhandler
-
 # need to specify 
 from model.DB_utils import DBhandler 
-
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
