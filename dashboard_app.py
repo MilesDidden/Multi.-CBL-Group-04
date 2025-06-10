@@ -128,6 +128,7 @@ def run_simulation(n_clicks, ward_code, num_officers):
         return {}, "❌ An error occurred during simulation.", {}, [], {"display": "block"}, {"display": "none"}
 
 
+
 @app.callback(
     Output("tab-content", "children"),
     Input("result-tabs", "value"),
