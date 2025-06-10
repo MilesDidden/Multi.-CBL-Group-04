@@ -13,3 +13,4 @@ __pycache__/
 *.sqlite3
 *.log
 .ipynb_checkpoints/
+kmeans_clusters_folium.html
