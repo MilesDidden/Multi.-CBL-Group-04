@@ -2,3 +2,8 @@
 *.csv
 *.parquet
 .DS_Store
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
