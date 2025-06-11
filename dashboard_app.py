@@ -1,20 +1,21 @@
 import dash
 from dash import dcc, html, Input, Output, State
 from dash.exceptions import PreventUpdate
-import plotly.express as px
+# import plotly.express as px
 import pandas as pd
 import io
 from dash.dcc import Download
 import plotly.graph_objects as go
 
-from utils.data_loader import (
-    load_crime_data,
-    load_ward_options,
-    get_forecast_plot_and_value,
-    get_clustered_map
-)
+from utils.data_loader import load_ward_options, check_accesiblity_db, prevent_imd_from_reaching_extreme_points
+from model.SARIMAX import timeseries
+from model.ML_utils import create_temp_table, delete_temp_table
+from model.KMeans import run_kmeans_weighted, plot_kmeans_clusters
+
 
 WARD_OPTIONS = load_ward_options()
+DB_LOC = "../data/"
+DB_NAME = "crime_data_UK_v4.db"
 
 app = dash.Dash(__name__)
 app.title = "Police Resource Dashboard"
@@ -98,7 +99,15 @@ def run_simulation(n_clicks, ward_code, num_officers):
         raise PreventUpdate
 
     try:
-        fig_forecast, forecast_value = get_forecast_plot_and_value(ward_code)
+        db_loc, db_name = check_accesiblity_db(DB_LOC, DB_NAME)
+
+        create_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
+
+        fig_forecast, forecast_value, imd = timeseries(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
+
+        # Prevent weights from collapsing to 0 (which breaks np.average)
+        # IMD scale is from 1 (most deprived) to 10 (least)
+        imd = prevent_imd_from_reaching_extreme_points(imd)
 
         #check both value and figure contents
         if not isinstance(forecast_value, (int, float)) or not fig_forecast or not fig_forecast.data:
@@ -106,18 +115,30 @@ def run_simulation(n_clicks, ward_code, num_officers):
 
         forecast_text = f"📈 Forecast for Next Month: {forecast_value:.2f} Burglaries"
 
-        fig_map, officer_df = get_clustered_map(
+        officer_locations, crime_location_df = run_kmeans_weighted(
             ward_code=ward_code,
-            num_officers=num_officers,
-            external_forecast_value=forecast_value,
-            return_df=True
+            n_crimes=forecast_value,
+            imd_value=imd,
+            n_clusters=num_officers,
+            db_loc=db_loc,
+            db_name=db_name
         )
+
+        fig_map = plot_kmeans_clusters(
+            clustered_data=crime_location_df, 
+            centroids=officer_locations, 
+            ward_code=ward_code, 
+            db_loc=db_loc, 
+            db_name=db_name
+        )
+
+        delete_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
 
         return (
            fig_forecast.to_dict(),  
            forecast_text,
            fig_map.to_dict(),       
-           officer_df.to_dict("records"),
+           pd.DataFrame(officer_locations).to_dict("records"),
            {"display": "block"},
            {"display": "block"}
         )
@@ -180,4 +201,4 @@ if __name__ == "__main__":
     # Start a browser tab shortly after the server starts
     threading.Timer(1.0, lambda: webbrowser.open_new(url)).start()
 
-    app.run_server(debug=True, port=port)
+    app.run(debug=True, port=port)

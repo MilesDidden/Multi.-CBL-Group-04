@@ -42,7 +42,7 @@ def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clust
 
     # Initialize centroids randomly
     rng = np.random.default_rng(42)
-    initial_idxs = rng.choice(coords.shape[0], n_clusters, replace=False)
+    initial_idxs = rng.choice(coords.shape[0], n_clusters, replace=True)
     centroids = coords[initial_idxs]
 
     max_iter = 100
