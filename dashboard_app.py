@@ -7,14 +7,7 @@ import io
 from dash.dcc import Download
 import plotly.graph_objects as go
 
-from utils.data_loader import (
-    # load_crime_data,
-    load_ward_options,
-    # get_forecast_plot_and_value,
-    # get_clustered_map,
-    check_accesiblity_db,
-    prevent_imd_from_reaching_extreme_points
-)
+from utils.data_loader import load_ward_options, check_accesiblity_db, prevent_imd_from_reaching_extreme_points
 from model.SARIMAX import timeseries
 from model.ML_utils import create_temp_table, delete_temp_table
 from model.KMeans import run_kmeans_weighted, plot_kmeans_clusters
