@@ -103,8 +103,8 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
     ]
 
     fig.add_trace(go.Scattermapbox(
-        lat=centroids[:, 1],
-        lon=centroids[:, 0],
+        lat=centroids[:, 0],
+        lon=centroids[:, 1],
         mode="markers+text",
         marker=dict(
             size=20,
