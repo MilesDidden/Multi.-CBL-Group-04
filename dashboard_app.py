@@ -201,4 +201,4 @@ if __name__ == "__main__":
     # Start a browser tab shortly after the server starts
     threading.Timer(1.0, lambda: webbrowser.open_new(url)).start()
 
-    app.run(debug=True, port=port)
+    app.run(debug=True, port=port, use_reloader=False)
