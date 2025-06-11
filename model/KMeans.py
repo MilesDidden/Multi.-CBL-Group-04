@@ -6,6 +6,9 @@ import numpy as np
 from sklearn.metrics import pairwise_distances_argmin
 import pandas as pd
 from geopy.distance import geodesic
+from tqdm import tqdm
+import networkx as nx
+import osmnx as ox
 
 
 def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clusters: int = 100, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
@@ -112,22 +115,6 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, ward_name, db_loc
         opacity=0.7
     ))
 
-    # Crime cluster points
-    fig.add_trace(go.Scattermapbox(
-    lat=clustered_data["latitude"],
-    lon=clustered_data["longitude"],
-    mode="markers",
-    marker=dict(
-        size=10,
-        color="red",
-        opacity=0.85,
-    ),
-    name="Crime Clusters",
-    text=[f"Cluster {c}" for c in clustered_data["cluster"]],
-    hoverinfo="text"
-    ))
-
-
     # Prepare centroid hover text
     centroid_hover_texts = [
         f"Police Officer {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
@@ -140,7 +127,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, ward_name, db_loc
         lon=centroids[:, 1],
         mode="markers",
         marker=dict(
-            size=10,
+            size=8,
             color="blue",
             opacity=0.85,
         ),
@@ -149,6 +136,20 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, ward_name, db_loc
         hovertext=centroid_hover_texts
     ))
 
+    # Crime cluster points
+    fig.add_trace(go.Scattermapbox(
+    lat=clustered_data["latitude"],
+    lon=clustered_data["longitude"],
+    mode="markers",
+    marker=dict(
+        size=5,
+        color="red",
+        opacity=0.85,
+    ),
+    name="Crime Clusters",
+    text=[f"Cluster {c}" for c in clustered_data["cluster"]],
+    hoverinfo="text"
+    ))
 
     # Compute center of ward polygon
     center = geom.centroid
@@ -189,3 +190,60 @@ def calc_avg_distance_between_crime_and_officer(clustered_data, centroids):
     )
 
     return df["distance"].mean().round(decimals=3), df["distance"].max().round(decimals=3)
+
+
+def calc_street_distance_between_crime_and_officer(clustered_data, centroids, graph=None):
+    """
+    Calculate the street distance (shortest path in meters) between each crime location and its assigned officer.
+
+    Arguments:
+    - clustered_data: DataFrame with columns ["latitude", "longitude", "cluster"]
+    - centroids: numpy array of shape (n_clusters, 2), with [latitude, longitude] for each officer
+    - graph: preloaded OSMnx graph (optional). If None, will load from file.
+
+    Returns:
+    - mean_distance (meters), max_distance (meters)
+    """
+
+    # Load graph if needed
+    if graph is None:
+        print(f"No graph is given for the calculation of street distance, extracting internally...")
+        G = ox.load_graphml("data/london_map_drive.graphml")
+    else:
+        G = graph
+
+    # Precompute edge lengths
+    G = ox.distance.add_edge_lengths(G)
+
+    distances = []
+
+    for idx, row in tqdm(clustered_data.iterrows(), total=len(clustered_data)):
+        # Crime point (latitude, longitude)
+        crime_point = (row["latitude"], row["longitude"])
+
+        # Officer (centroid) point for this crime's cluster
+        cluster_idx = int(row["cluster"])  # Convert to integer index (IMPORTANT FIX)
+        officer_point = (centroids[cluster_idx][0], centroids[cluster_idx][1])
+
+        try:
+            # Find nearest nodes in graph
+            crime_node = ox.distance.nearest_nodes(G, X=crime_point[1], Y=crime_point[0])
+            officer_node = ox.distance.nearest_nodes(G, X=officer_point[1], Y=officer_point[0])
+
+            # Calculate shortest path length (meters)
+            length = nx.shortest_path_length(G, crime_node, officer_node, weight="length")
+
+        except Exception as e:
+            print(f"Warning: could not compute path for row {idx}: {e}")
+            length = float("nan")
+
+        distances.append(length)
+
+    # Add distances to dataframe (optional — if you want to inspect later)
+    clustered_data["street_distance_meters"] = distances
+
+    # Compute statistics (ignoring NaNs)
+    mean_distance = clustered_data["street_distance_meters"].mean().round(decimals=3)
+    max_distance = clustered_data["street_distance_meters"].max().round(decimals=3)
+
+    return mean_distance, max_distance

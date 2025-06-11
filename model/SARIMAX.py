@@ -164,4 +164,7 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
         margin=dict(l=40, r=20, t=50, b=40)
     )
 
-    return fig, forecast_next_month, weight_imd
+    df["fitted"] = results.fittedvalues
+    mean_absolute_error = (df["num_of_crimes"] - df["fitted"]).abs().mean()
+
+    return fig, forecast_next_month, weight_imd, mean_absolute_error

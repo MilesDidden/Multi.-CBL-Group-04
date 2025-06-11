@@ -7,16 +7,33 @@ from dash.dcc import Download
 import plotly.graph_objects as go
 import threading
 import webbrowser
+import osmnx as ox
 
-from utils.data_loader import load_ward_options, check_accesiblity_db, prevent_imd_from_reaching_extreme_points
-from model.SARIMAX import timeseries
-from model.ML_utils import create_temp_table, delete_temp_table
-from model.KMeans import run_kmeans_weighted, plot_kmeans_clusters
-
+from utils.data_loader import (
+    load_ward_options, 
+    check_accesiblity_db, 
+    prevent_imd_from_reaching_extreme_points
+    )
+from model.SARIMAX import (
+    timeseries
+    )
+from model.ML_utils import (
+    create_temp_table, 
+    delete_temp_table
+    )
+from model.KMeans import (
+    run_kmeans_weighted, 
+    plot_kmeans_clusters, 
+    calc_avg_distance_between_crime_and_officer, 
+    calc_street_distance_between_crime_and_officer
+    )
 
 WARD_OPTIONS = load_ward_options()
 DB_LOC = "../data/"
 DB_NAME = "crime_data_UK_v4.db"
+
+LONDON_GRAPHML = ox.load_graphml("data/london_map_drive.graphml")
+LATEST_STREET_DISTANCE = {"mean": None, "max": None}
 
 app = dash.Dash(__name__)
 app.title = "Police Resource Dashboard"
@@ -28,37 +45,60 @@ app.layout = html.Div([
              style={"textAlign": "center", "color": "#003366", "marginTop": "10px", "marginBottom": "20px"}),
 
     html.Div([
-        html.H3("Simulation Parameters", style={"textAlign": "center"}),
+        html.Div([
+            html.H3("Simulation Parameters", style={"textAlign": "center"}),
 
-        html.Label("Select Ward:"),
-        dcc.Dropdown(
-            id="ward-dropdown",
-            options=WARD_OPTIONS,
-            value=None,
-            placeholder="Select a ward"
-        ),
+            html.Label("Select Ward:"),
+            dcc.Dropdown(
+                id="ward-dropdown",
+                options=WARD_OPTIONS,
+                value=None,
+                placeholder="Select a ward"
+            ),
 
-        html.Br(),
+            html.Br(),
 
-        html.Label("Number of Officers:"),
-        dcc.Slider(
-            id="officer-slider",
-            min=0,
-            max=200,
-            step=10,
-            value=100,
-            marks={i: str(i) for i in range(0, 201, 10)}
-        ),
+            html.Label("Number of Officers:"),
+            dcc.Slider(
+                id="officer-slider",
+                min=0,
+                max=200,
+                step=10,
+                value=100,
+                marks={i: str(i) for i in range(0, 201, 10)}
+            ),
 
-        html.Br(),
+            html.Br(),
 
-        html.Div(html.Button("Run Simulation", id="simulate-button", n_clicks=0),
-                 style={"textAlign": "center"}),
+            html.Div(html.Button("Run Simulation", id="simulate-button", n_clicks=0),
+                    style={"textAlign": "center"}),
 
-        html.Br()
+            html.Br()
+        ], style={
+            "flex": "0 0 70%",  # left column fixed to 70%
+            "padding": "20px",
+            "border": "1px solid #ccc",
+            "borderRadius": "10px",
+            "marginRight": "10px"  # space between columns
+        }),
+
+        html.Div([
+            html.H3("Current Strategy Parameters", style={"textAlign": "center"}),
+            html.Div(id="street-distance-text", style={"textAlign": "center", "fontSize": "16px", "marginTop": "10px"}),
+        ], style={
+            "flex": "1",  # right column takes remaining 30%
+            "padding": "20px",
+            "border": "1px solid #ccc",
+            "borderRadius": "10px"
+        })
     ], style={
-        "width": "70%", "margin": "auto", "padding": "20px",
-        "border": "1px solid #ccc", "borderRadius": "10px"
+        "display": "flex",         # <--- this is the key!
+        "flexDirection": "row",
+        "width": "90%",            # optional: total width
+        "margin": "auto",
+        "padding": "20px",
+        "border": "1px solid #ccc",
+        "borderRadius": "10px"
     }),
 
     dcc.Loading(id="loading-output", type="circle", children=html.Div(id="results-section", children=[
@@ -83,7 +123,11 @@ app.layout = html.Div([
     #Hidden Stores for Passing Figures and Data Between Callbacks
     dcc.Store(id="forecast-fig-store"),
     dcc.Store(id="deployment-fig-store"),
-    dcc.Store(id="officer-data-store")
+    dcc.Store(id="officer-data-store"),
+    dcc.Store(id="street-distance-store"),
+
+    # Add interval to trigger street distances to update
+    dcc.Interval(id="street-distance-interval", interval=5000, n_intervals=0)
 ])
 
 @app.callback(
@@ -98,7 +142,7 @@ app.layout = html.Div([
     State("officer-slider", "value")
 )
 def run_simulation(n_clicks, ward_code, num_officers):
-    print(ward_code)
+    
     if not n_clicks or ward_code is None:
         raise PreventUpdate
 
@@ -107,7 +151,7 @@ def run_simulation(n_clicks, ward_code, num_officers):
 
         create_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
 
-        fig_forecast, forecast_value, imd = timeseries(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
+        fig_forecast, forecast_value, imd, mae = timeseries(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
 
         # Prevent weights from collapsing to 0 (which breaks np.average)
         # IMD scale is from 1 (most deprived) to 10 (least)
@@ -139,7 +183,36 @@ def run_simulation(n_clicks, ward_code, num_officers):
             db_name=db_name
         )
 
-        delete_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
+        # Euclidean distance
+        mean_euclidean_distance, max_euclidean_distance = calc_avg_distance_between_crime_and_officer(
+            clustered_data=crime_location_df, centroids=officer_locations)
+        
+        # Street distance
+        def background_street_distance(clustered_data, centroids, graph):
+            global LATEST_STREET_DISTANCE
+
+            try:
+                print("🔄 Starting background street distance calculation...")
+                mean_street_distance, max_street_distance = calc_street_distance_between_crime_and_officer(
+                    clustered_data=clustered_data, centroids=centroids, graph=graph
+                )
+                print(f"✅ Done: mean={mean_street_distance}, max={max_street_distance}")
+                LATEST_STREET_DISTANCE["mean"] = mean_street_distance
+                LATEST_STREET_DISTANCE["max"] = max_street_distance
+
+                delete_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
+
+            except Exception as e:
+                print(f"⚠️ Error in background street distance calculation: {e}")
+
+        LATEST_STREET_DISTANCE["mean"] = None
+        LATEST_STREET_DISTANCE["max"] = None
+
+        threading.Thread(
+            target=background_street_distance,
+            args=(crime_location_df, officer_locations, LONDON_GRAPHML),
+            daemon=True
+        ).start()
 
         return (
            fig_forecast.to_dict(),  
@@ -187,6 +260,44 @@ def switch_tabs(tab):
     elif tab == "deployment-tab":
         return {"display": "none"}, {"display": "block"}
     return {"display": "none"}, {"display": "none"}
+
+
+@app.callback(
+    Output("street-distance-store", "data"),
+    Output("street-distance-interval", "disabled"),  # disable once done
+    Input("street-distance-interval", "n_intervals")
+)
+def update_street_distance_store(n):
+    global LATEST_STREET_DISTANCE
+    if LATEST_STREET_DISTANCE["mean"] is not None and LATEST_STREET_DISTANCE["max"] is not None:
+        return {
+            "mean": LATEST_STREET_DISTANCE["mean"],
+            "max": LATEST_STREET_DISTANCE["max"]
+        }, True  # disable Interval once done
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output("street-distance-text", "children"),
+    Input("simulate-button", "n_clicks"),
+    Input("street-distance-store", "data"),
+    prevent_initial_call=True
+)
+def display_street_distance(n_clicks, data):
+    # If no click → show nothing
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+
+    # If no data or empty dict → show calculating message
+    if data is None or data == {}:
+        return "Calculating street distance..."
+
+    # If data is valid → show distances
+    try:
+        return f"Mean Street Distance: {data['mean']/1000:.2f} km, Max Street Distance: {data['max']/1000:.2f} km"
+    except Exception:
+        return "⚠️ Error displaying street distance."
 
 
 # Export CSV
