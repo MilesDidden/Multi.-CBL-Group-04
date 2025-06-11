@@ -142,7 +142,8 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
         y=forecast_y,
         mode='lines',
         line=dict(color='orange', width=2),
-        name='Forecast'
+        name='Forecast',
+        visible='legendonly'
     ))
 
     # Final red forecast line to next unseen month

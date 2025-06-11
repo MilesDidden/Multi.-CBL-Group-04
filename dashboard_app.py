@@ -1,11 +1,12 @@
 import dash
 from dash import dcc, html, Input, Output, State
 from dash.exceptions import PreventUpdate
-# import plotly.express as px
 import pandas as pd
 import io
 from dash.dcc import Download
 import plotly.graph_objects as go
+import threading
+import webbrowser
 
 from utils.data_loader import load_ward_options, check_accesiblity_db, prevent_imd_from_reaching_extreme_points
 from model.SARIMAX import timeseries
@@ -113,7 +114,7 @@ def run_simulation(n_clicks, ward_code, num_officers):
         if not isinstance(forecast_value, (int, float)) or not fig_forecast or not fig_forecast.data:
             return {}, "❌ Forecast unavailable", {}, [], {"display": "block"}, {"display": "none"}
 
-        forecast_text = f"📈 Forecast for Next Month: {forecast_value:.2f} Burglaries"
+        forecast_text = f"📈 Forecast for Next Month: {int(round(forecast_value, 0))} Burglaries"
 
         officer_locations, crime_location_df = run_kmeans_weighted(
             ward_code=ward_code,
@@ -192,8 +193,6 @@ def export_csv(n_clicks, data):
     return dict(content=buffer.getvalue(), filename="officer_clusters.csv", type="text/csv")
 
 if __name__ == "__main__":
-    import threading
-    import webbrowser
 
     port = 8050  # or any other port you'd like
     url = f"http://127.0.0.1:{port}/"

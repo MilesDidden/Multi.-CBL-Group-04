@@ -77,48 +77,6 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
 
     fig = go.Figure()
 
-    # Crime cluster points
-    fig.add_trace(go.Scattermapbox(
-    lat=clustered_data["latitude"],
-    lon=clustered_data["longitude"],
-    mode="markers",
-    marker=dict(
-        size=10,
-        color=clustered_data["cluster"],
-        colorscale="Viridis",
-        opacity=0.85,
-        showscale=False
-    ),
-    name="Crime Clusters",
-    text=[f"Cluster {c}" for c in clustered_data["cluster"]],
-    hoverinfo="text"
-    ))
-
-
-    # Prepare centroid hover text
-    centroid_hover_texts = [
-        f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
-        # stays the same, just ensure the unpacking is correct
-        for i, (lat, lon) in enumerate(centroids)
-    ]
-
-    fig.add_trace(go.Scattermapbox(
-        lat=centroids[:, 0],
-        lon=centroids[:, 1],
-        mode="markers+text",
-        marker=dict(
-            size=20,
-            color="red",
-            symbol="cross",
-        ),
-        name="Police Officers",
-        text=["X"] * len(centroids),
-        textfont=dict(size=18, color="black"),
-        textposition="middle center",
-        hoverinfo="text",
-        hovertext=centroid_hover_texts
-    ))
-    
     # Connect to the database
     db_handler = DBhandler(db_loc=db_loc, db_name=db_name, verbose=0)
 
@@ -153,11 +111,55 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
         hoverinfo='skip',
         opacity=0.7
     ))
+
+    # Crime cluster points
+    fig.add_trace(go.Scattermapbox(
+    lat=clustered_data["latitude"],
+    lon=clustered_data["longitude"],
+    mode="markers",
+    marker=dict(
+        size=10,
+        color="red",
+        opacity=0.85,
+        showscale=False
+    ),
+    name="Crime Clusters",
+    text=[f"Cluster {c}" for c in clustered_data["cluster"]],
+    hoverinfo="text"
+    ))
+
+
+    # Prepare centroid hover text
+    centroid_hover_texts = [
+        f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
+        # stays the same, just ensure the unpacking is correct
+        for i, (lat, lon) in enumerate(centroids)
+    ]
+
+    fig.add_trace(go.Scattermapbox(
+        lat=centroids[:, 0],
+        lon=centroids[:, 1],
+        mode="markers",
+        marker=dict(
+            size=10,
+            color="blue"
+        ),
+        name="Police Officers",
+        hoverinfo="text",
+        hovertext=centroid_hover_texts
+    ))
+
+
+    # Compute center of ward polygon
+    center = geom.centroid
+    center_lat = center.y
+    center_lon = center.x
+
     fig.update_layout(
         mapbox=dict(
             style="carto-positron",
-            zoom=11,
-            center=dict(lat=51.5074, lon=-0.1278)
+            zoom=12,  # Your desired zoom level
+            center=dict(lat=center_lat, lon=center_lon)
         ),
         title=f"K-Means Clustering of Crimes in Ward {ward_code}",
         autosize=True,
