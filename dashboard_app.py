@@ -69,7 +69,9 @@ app.layout = html.Div([
             dcc.Tab(label="📈 Forecast Visualization", value="forecast-tab"),
             dcc.Tab(label="📍 Officer Deployment Map", value="deployment-tab")
         ]),
-        html.Div(id="tab-content"),
+        dcc.Graph(id="forecast-graph", style={"display": "block"}),
+        dcc.Graph(id="deployment-graph", style={"display": "none"}),
+        # html.Div(id="tab-content"),
         html.Br(),
 
         html.Div(id="download-section", children=[
@@ -96,6 +98,7 @@ app.layout = html.Div([
     State("officer-slider", "value")
 )
 def run_simulation(n_clicks, ward_code, num_officers):
+    print(ward_code)
     if not n_clicks or ward_code is None:
         raise PreventUpdate
 
@@ -125,10 +128,13 @@ def run_simulation(n_clicks, ward_code, num_officers):
             db_name=db_name
         )
 
+        ward_name_df = pd.DataFrame(WARD_OPTIONS)
+
         fig_map = plot_kmeans_clusters(
             clustered_data=crime_location_df, 
             centroids=officer_locations, 
             ward_code=ward_code, 
+            ward_name=ward_name_df[ward_name_df["value"] == ward_code]["label"].values[0],
             db_loc=db_loc, 
             db_name=db_name
         )
@@ -151,30 +157,37 @@ def run_simulation(n_clicks, ward_code, num_officers):
 
 
 @app.callback(
-    Output("tab-content", "children"),
-    Input("result-tabs", "value"),
-    State("forecast-fig-store", "data"),
-    State("deployment-fig-store", "data")
+    Output("forecast-graph", "figure"),
+    Input("forecast-fig-store", "data")
 )
+def update_forecast_figure(forecast_fig):
+    if forecast_fig and isinstance(forecast_fig, dict) and "data" in forecast_fig and forecast_fig["data"]:
+        return go.Figure(forecast_fig)
+    return go.Figure()  # empty fallback
 
-def render_tab(tab, forecast_fig, deployment_fig):
+
+@app.callback(
+    Output("deployment-graph", "figure"),
+    Input("deployment-fig-store", "data")
+)
+def update_deployment_figure(deployment_fig):
+    if deployment_fig and isinstance(deployment_fig, dict) and "data" in deployment_fig and deployment_fig["data"]:
+        return go.Figure(deployment_fig)
+    return go.Figure()
+
+
+@app.callback(
+    Output("forecast-graph", "style"),
+    Output("deployment-graph", "style"),
+    Input("result-tabs", "value")
+)
+def switch_tabs(tab):
     if tab == "forecast-tab":
-        try:
-            if forecast_fig and isinstance(forecast_fig, dict) and "data" in forecast_fig and forecast_fig["data"]:
-                return dcc.Graph(figure=go.Figure(forecast_fig))
-        except Exception as e:
-            print(f"⚠️ Failed to render forecast figure: {e}")
-        return html.Div("⚠️ Forecast plot not available.")
-
+        return {"display": "block"}, {"display": "none"}
     elif tab == "deployment-tab":
-        try:
-            if deployment_fig and isinstance(deployment_fig, dict) and "data" in deployment_fig and deployment_fig["data"]:
-                return dcc.Graph(figure=go.Figure(deployment_fig))
-        except Exception as e:
-            print(f"⚠️ Failed to render deployment figure: {e}")
-        return html.Div("⚠️ Deployment map not available.")
+        return {"display": "none"}, {"display": "block"}
+    return {"display": "none"}, {"display": "none"}
 
-    return html.Div("Invalid tab selected.")
 
 # Export CSV
 @app.callback(
@@ -191,6 +204,7 @@ def export_csv(n_clicks, data):
     df.to_csv(buffer, index=False)
     buffer.seek(0)
     return dict(content=buffer.getvalue(), filename="officer_clusters.csv", type="text/csv")
+
 
 if __name__ == "__main__":
 

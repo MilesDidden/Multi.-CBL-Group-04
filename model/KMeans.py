@@ -73,7 +73,7 @@ def run_kmeans_weighted(ward_code: str, n_crimes: int, imd_value: float, n_clust
     return centroids, crime_locations
 
 
-def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
+def plot_kmeans_clusters(clustered_data, centroids, ward_code, ward_name, db_loc: str="../data/", db_name: str="crime_data_UK_v4.db"):
 
     fig = go.Figure()
 
@@ -161,7 +161,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
             zoom=12,  # Your desired zoom level
             center=dict(lat=center_lat, lon=center_lon)
         ),
-        title=f"K-Means Clustering of Crimes in Ward {ward_code}",
+        title=f"K-Means Clustering of Crimes in Ward {ward_name}",
         autosize=True,
         height=800,
         margin=dict(l=0, r=0, t=50, b=0)
