@@ -121,7 +121,6 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
         size=10,
         color="red",
         opacity=0.85,
-        showscale=False
     ),
     name="Crime Clusters",
     text=[f"Cluster {c}" for c in clustered_data["cluster"]],
@@ -131,7 +130,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
 
     # Prepare centroid hover text
     centroid_hover_texts = [
-        f"Cluster {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
+        f"Police Officer {i}<br>Lat: {lat:.5f}<br>Lon: {lon:.5f}"
         # stays the same, just ensure the unpacking is correct
         for i, (lat, lon) in enumerate(centroids)
     ]
@@ -142,7 +141,8 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, db_loc: str="../d
         mode="markers",
         marker=dict(
             size=10,
-            color="blue"
+            color="blue",
+            opacity=0.85,
         ),
         name="Police Officers",
         hoverinfo="text",
