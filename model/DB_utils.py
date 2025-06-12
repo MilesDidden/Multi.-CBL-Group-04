@@ -166,9 +166,9 @@ class DBhandler:
         self.db_name = db_name
         self.db_path = os.path.join(self.db_loc, self.db_name)
 
-        #debugging line
-        print(f"✅ DEBUG: DB path resolved to → {self.db_path}")
-        print(f"✅ DEBUG: Writable? → {os.access(self.db_path, os.W_OK)}")
+        # #debugging line
+        # print(f"✅ DEBUG: DB path resolved to → {self.db_path}")
+        # print(f"✅ DEBUG: Writable? → {os.access(self.db_path, os.W_OK)}")
 
 
         self.verbose = verbose
@@ -334,4 +334,3 @@ class DBhandler:
             print('\nDatabase updated!\n')
 
         return None
-

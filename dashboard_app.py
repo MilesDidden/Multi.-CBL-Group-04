@@ -340,31 +340,16 @@ def display_strategy_parameters(n_clicks, data):
 
 
 @app.callback(
-    Output("street-distance-store", "data"),
-    Input("simulate-button", "n_clicks"),
-    Input("street-interval", "n_intervals"),
-    prevent_initial_call=True
+        Output("street-distance-store", "data"),
+        Input("interval", "n_intervals")
 )
-def update_or_reset_street_distance(n_clicks, n_intervals):
-    ctx = dash.callback_context
+def update_strategy_parameters_store(n):
 
-    if not ctx.triggered:
-        return no_update
-
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    if trigger_id == "simulate-button":
-        print("Resetting street-distance-store to {}")
-        return {}
-
-    elif trigger_id == "street-interval":
-        if not street_distance_queue.empty():
-            data = street_distance_queue.get()
-            print(f"Updating street-distance-store with result: {data}")
-            return data
-        else:
-            # Instead of PreventUpdate → return no_update → lets downstream callbacks run.
-            return no_update
+    if not street_distance_queue.empty():
+        data = street_distance_queue.get()
+        return data
+    else:
+        raise PreventUpdate
 
 
 @app.callback(

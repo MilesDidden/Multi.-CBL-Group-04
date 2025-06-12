@@ -147,7 +147,7 @@ def plot_kmeans_clusters(clustered_data, centroids, ward_code, ward_name, db_loc
         opacity=0.85,
     ),
     name="Crime Clusters",
-    text=[f"Cluster {c}" for c in clustered_data["cluster"]],
+    text=[f"Crime {c}" for c in clustered_data["cluster"]],
     hoverinfo="text"
     ))
 
