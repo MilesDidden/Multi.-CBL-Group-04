@@ -67,7 +67,7 @@ app.layout = html.Div([
                 id="officer-slider",
                 min=0,
                 max=200,
-                step=10,
+                step=1,
                 value=100,
                 marks={i: str(i) for i in range(0, 201, 10)}
             ),
