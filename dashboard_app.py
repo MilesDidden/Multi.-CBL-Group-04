@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, no_update
 from dash.exceptions import PreventUpdate
 import pandas as pd
 import io
@@ -8,6 +8,8 @@ import plotly.graph_objects as go
 import threading
 import webbrowser
 import osmnx as ox
+from queue import Queue
+
 
 from utils.data_loader import (
     load_ward_options, 
@@ -33,7 +35,9 @@ DB_LOC = "../data/"
 DB_NAME = "crime_data_UK_v4.db"
 
 LONDON_GRAPHML = ox.load_graphml("data/london_map_drive.graphml")
-LATEST_STREET_DISTANCE = {"mean": None, "max": None}
+
+strat_report_queue = Queue()
+street_distance_queue = Queue()
 
 app = dash.Dash(__name__)
 app.title = "Police Resource Dashboard"
@@ -84,7 +88,13 @@ app.layout = html.Div([
 
         html.Div([
             html.H3("Current Strategy Parameters", style={"textAlign": "center"}),
-            html.Div(id="street-distance-text", style={"textAlign": "center", "fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="police-officer-number", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="number-of-predicted-crimes", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="mean-absolute-error-timeseries", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="mean-euclidean-distance-text", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="max-euclidean-distance-text", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="mean-street-distance-text", style={"fontSize": "16px", "marginTop": "10px"}),
+            html.Div(id="max-street-distance-text", style={"fontSize": "16px", "marginTop": "10px"}),
         ], style={
             "flex": "1",  # right column takes remaining 30%
             "padding": "20px",
@@ -102,16 +112,14 @@ app.layout = html.Div([
     }),
 
     dcc.Loading(id="loading-output", type="circle", children=html.Div(id="results-section", children=[
-        html.Div(id="forecast-text", style={"textAlign": "center", "fontSize": "20px", "fontWeight": "bold"}),
+        
         html.Br(),
-
         dcc.Tabs(id="result-tabs", value="forecast-tab", children=[
             dcc.Tab(label="📈 Forecast Visualization", value="forecast-tab"),
             dcc.Tab(label="📍 Officer Deployment Map", value="deployment-tab")
         ]),
         dcc.Graph(id="forecast-graph", style={"display": "block"}),
         dcc.Graph(id="deployment-graph", style={"display": "none"}),
-        # html.Div(id="tab-content"),
         html.Br(),
 
         html.Div(id="download-section", children=[
@@ -125,14 +133,15 @@ app.layout = html.Div([
     dcc.Store(id="deployment-fig-store"),
     dcc.Store(id="officer-data-store"),
     dcc.Store(id="street-distance-store"),
+    dcc.Store(id="strategy-report-store"),
 
-    # Add interval to trigger street distances to update
-    dcc.Interval(id="street-distance-interval", interval=5000, n_intervals=0)
+    # Add interval to trigger queues
+    dcc.Interval(id="interval", interval=1000, n_intervals=0),
+    dcc.Interval(id="street-interval", interval=1000, n_intervals=0)
 ])
 
 @app.callback(
     Output("forecast-fig-store", "data"),
-    Output("forecast-text", "children"),
     Output("deployment-fig-store", "data"),
     Output("officer-data-store", "data"),
     Output("results-section", "style"),
@@ -142,7 +151,10 @@ app.layout = html.Div([
     State("officer-slider", "value")
 )
 def run_simulation(n_clicks, ward_code, num_officers):
-    
+
+    street_distance_queue.put({})
+    strat_report_queue.put({})
+
     if not n_clicks or ward_code is None:
         raise PreventUpdate
 
@@ -159,9 +171,7 @@ def run_simulation(n_clicks, ward_code, num_officers):
 
         #check both value and figure contents
         if not isinstance(forecast_value, (int, float)) or not fig_forecast or not fig_forecast.data:
-            return {}, "❌ Forecast unavailable", {}, [], {"display": "block"}, {"display": "none"}
-
-        forecast_text = f"📈 Forecast for Next Month: {int(round(forecast_value, 0))} Burglaries"
+            return {}, {}, [], {"display": "block"}, {"display": "none"}
 
         officer_locations, crime_location_df = run_kmeans_weighted(
             ward_code=ward_code,
@@ -189,7 +199,6 @@ def run_simulation(n_clicks, ward_code, num_officers):
         
         # Street distance
         def background_street_distance(clustered_data, centroids, graph):
-            global LATEST_STREET_DISTANCE
 
             try:
                 print("🔄 Starting background street distance calculation...")
@@ -197,16 +206,16 @@ def run_simulation(n_clicks, ward_code, num_officers):
                     clustered_data=clustered_data, centroids=centroids, graph=graph
                 )
                 print(f"✅ Done: mean={mean_street_distance}, max={max_street_distance}")
-                LATEST_STREET_DISTANCE["mean"] = mean_street_distance
-                LATEST_STREET_DISTANCE["max"] = max_street_distance
+
+                street_distance_queue.put({
+                    "mean": mean_street_distance,
+                    "max": max_street_distance
+                })
 
                 delete_temp_table(ward_code=ward_code, db_loc=db_loc, db_name=db_name)
 
             except Exception as e:
                 print(f"⚠️ Error in background street distance calculation: {e}")
-
-        LATEST_STREET_DISTANCE["mean"] = None
-        LATEST_STREET_DISTANCE["max"] = None
 
         threading.Thread(
             target=background_street_distance,
@@ -214,10 +223,27 @@ def run_simulation(n_clicks, ward_code, num_officers):
             daemon=True
         ).start()
 
+        if forecast_value < num_officers:
+            assigned_officer_text = (f"Number of assigned officers: {num_officers} - "+ 
+                                     "Recommendation: Do not use more officers than forecasted crimes!")
+        else:
+            assigned_officer_text = f"Number of assigned officers: {num_officers}"
+        forecast_text = f"📈 Forecast for next month: {int(round(forecast_value, 0))} burglaries"
+        mae_forecast_text = f"Average error of forecasts: {round(mae, 2)} burglaries"
+        mean_euclidean_distance_text = f"Average euclidean distance: {round(mean_euclidean_distance/1000, 3)} km"
+        max_euclidean_distance_text = f"Maximum euclidean distance: {round(max_euclidean_distance/1000, 3)} km"
+
+        strat_report_queue.put({
+            "num_police_officers":assigned_officer_text,
+            "num_crimes":forecast_text,
+            "mae_forecast":mae_forecast_text,
+            "mean_distance":mean_euclidean_distance_text,
+            "max_distance":max_euclidean_distance_text
+        })
+
         return (
-           fig_forecast.to_dict(),  
-           forecast_text,
-           fig_map.to_dict(),       
+           fig_forecast.to_dict(),
+           fig_map.to_dict(),
            pd.DataFrame(officer_locations).to_dict("records"),
            {"display": "block"},
            {"display": "block"}
@@ -226,7 +252,7 @@ def run_simulation(n_clicks, ward_code, num_officers):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return {}, "❌ An error occurred during simulation.", {}, [], {"display": "block"}, {"display": "none"}
+        return {}, {}, [], {"display": "block"}, {"display": "none"}
 
 
 @app.callback(
@@ -263,23 +289,87 @@ def switch_tabs(tab):
 
 
 @app.callback(
-    Output("street-distance-store", "data"),
-    Output("street-distance-interval", "disabled"),  # disable once done
-    Input("street-distance-interval", "n_intervals")
+        Output("strategy-report-store", "data"),
+        Input("interval", "n_intervals")
 )
-def update_street_distance_store(n):
-    global LATEST_STREET_DISTANCE
-    if LATEST_STREET_DISTANCE["mean"] is not None and LATEST_STREET_DISTANCE["max"] is not None:
-        return {
-            "mean": LATEST_STREET_DISTANCE["mean"],
-            "max": LATEST_STREET_DISTANCE["max"]
-        }, True  # disable Interval once done
+def update_strategy_parameters_store(n):
+
+    if not strat_report_queue.empty():
+        data = strat_report_queue.get()
+        return data
     else:
         raise PreventUpdate
 
 
 @app.callback(
-    Output("street-distance-text", "children"),
+        Output("police-officer-number", "children"),
+        Output("number-of-predicted-crimes", "children"),
+        Output("mean-absolute-error-timeseries", "children"),
+        Output("mean-euclidean-distance-text", "children"),
+        Output("max-euclidean-distance-text", "children"),
+        Input("simulate-button", "n_clicks"),
+        Input("strategy-report-store", "data"),
+        prevent_initial_call=True
+)
+def display_strategy_parameters(n_clicks, data):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    
+    # If no data or empty dict → show calculating message
+    if data is None or data == {}:
+        return (
+            " ", " ",
+            "Calculating parameters ...",
+            " ", " ",
+        )
+    
+    try:
+        return (
+            data["num_police_officers"],
+            data["num_crimes"],
+            data["mae_forecast"],
+            data["mean_distance"],
+            data["max_distance"]
+        )
+    except Exception:
+        return (
+            " ", " ",
+            "⚠️ Error showing parameters", 
+            " ", " "
+        )
+
+
+@app.callback(
+    Output("street-distance-store", "data"),
+    Input("simulate-button", "n_clicks"),
+    Input("street-interval", "n_intervals"),
+    prevent_initial_call=True
+)
+def update_or_reset_street_distance(n_clicks, n_intervals):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        return no_update
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == "simulate-button":
+        print("Resetting street-distance-store to {}")
+        return {}
+
+    elif trigger_id == "street-interval":
+        if not street_distance_queue.empty():
+            data = street_distance_queue.get()
+            print(f"Updating street-distance-store with result: {data}")
+            return data
+        else:
+            # Instead of PreventUpdate → return no_update → lets downstream callbacks run.
+            return no_update
+
+
+@app.callback(
+    Output("mean-street-distance-text", "children"),
+    Output("max-street-distance-text", "children"),
     Input("simulate-button", "n_clicks"),
     Input("street-distance-store", "data"),
     prevent_initial_call=True
@@ -291,13 +381,13 @@ def display_street_distance(n_clicks, data):
 
     # If no data or empty dict → show calculating message
     if data is None or data == {}:
-        return "Calculating street distance..."
+        return "Calculating street distance...", " "
 
     # If data is valid → show distances
     try:
-        return f"Mean Street Distance: {data['mean']/1000:.2f} km, Max Street Distance: {data['max']/1000:.2f} km"
+        return f"Average street distance: {round(data['mean']/1000, 3)} km", f"Maximum street distance: {round(data['max']/1000, 3)} km"
     except Exception:
-        return "⚠️ Error displaying street distance."
+        return "⚠️ Error displaying street distance.", " "
 
 
 # Export CSV
