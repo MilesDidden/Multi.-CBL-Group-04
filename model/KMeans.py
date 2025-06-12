@@ -189,7 +189,7 @@ def calc_avg_distance_between_crime_and_officer(clustered_data, centroids):
         axis=1
     )
 
-    return df["distance"].mean().round(decimals=3), df["distance"].max().round(decimals=3)
+    return round(df["distance"].mean(), 3), round(df["distance"].max(), 3)
 
 
 def calc_street_distance_between_crime_and_officer(clustered_data, centroids, graph=None):
@@ -243,7 +243,9 @@ def calc_street_distance_between_crime_and_officer(clustered_data, centroids, gr
     clustered_data["street_distance_meters"] = distances
 
     # Compute statistics (ignoring NaNs)
-    mean_distance = clustered_data["street_distance_meters"].mean().round(decimals=3)
-    max_distance = clustered_data["street_distance_meters"].max().round(decimals=3)
+    # Compute statistics (ignoring NaNs)
+    mean_distance = round(clustered_data["street_distance_meters"].mean(), 3)
+    max_distance = round(clustered_data["street_distance_meters"].max(), 3)
+
 
     return mean_distance, max_distance
