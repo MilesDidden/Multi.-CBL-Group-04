@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State, no_update
+from dash import dcc, html, Input, Output, State
 from dash.exceptions import PreventUpdate
 import pandas as pd
 import io

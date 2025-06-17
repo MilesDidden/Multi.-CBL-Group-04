@@ -1,10 +1,6 @@
 from model.DB_utils import *
 from model.table_joining_utils import join_tables
 
-from shapely.wkt import dumps as wkt_dumps
-from tqdm import tqdm
-import psutil
-from multiprocessing import Pool
 import pandas as pd
 import time
 

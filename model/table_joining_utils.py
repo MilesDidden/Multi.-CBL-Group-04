@@ -1,6 +1,5 @@
 import pandas as pd
 from shapely import wkt
-from shapely.geometry import Point
 import geopandas as gpd
 
 

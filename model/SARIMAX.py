@@ -1,5 +1,5 @@
-# need to specify 
 from model.DB_utils import DBhandler 
+
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
@@ -32,9 +32,10 @@ def timeseries(ward_code: str, db_loc: str="../data/", db_name: str="crime_data_
 
     weight_imd = df["avg_imd"].iloc[-1]
 
-    df = df.asfreq("MS")  # Monthly frequency
+    df = df.asfreq("MS")  # Ensure monthly datetime index
     df["num_of_crimes"] = df["num_of_crimes"].fillna(0)
     df["avg_imd"] = df["avg_imd"].interpolate()
+    df["covid_index"] = df["covid_index"].interpolate().fillna(0)
 
     # Check stationarity using ADFuller
     adfuller_test = adfuller(df["num_of_crimes"])
