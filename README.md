@@ -26,7 +26,7 @@ This project analyzes historical crime data in London and proposes police alloca
 ### 1. Obtain the source code ...
 
 #### ..., By Downloading
-- Head over to https://github.com/MilesDidden/Multi.-CBL-Group-04/releases/tag/Final-Sprint, and download the zip file.
+- Head over to https://github.com/MilesDidden/Multi.-CBL-Group-04/releases/tag/PreRelease, and download the zip file.
 - Extract the zip file to a folder of your liking. 
 
 #### ..., By git cloning
